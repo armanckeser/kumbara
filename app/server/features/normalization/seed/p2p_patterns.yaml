@@ -1,0 +1,51 @@
+# P2P rail collapse — identity overrides for peer-to-peer payment rails.
+#
+# A Venmo/Zelle/Cash App row carries the PERSON and NOTE in its description ("ALEX MORGAN PAID PAT LEE
+# PAY BACK"). That memo is noise for MERCHANT identity — left alone, each unique note mints its own
+# unresolved merchant (the "40 one-off Venmo merchants" bug). So when a raw description matches a rail's
+# pattern, the pipeline collapses the ENTIRE merchant_key to that rail's canonical `key` (which must exist
+# in merchant_kb.jsonl as a kind=p2p merchant). The person/note still shows on the transaction's
+# display payee; only the merchant identity collapses.
+#
+# A rail is a payment METHOD, not a meaning: paying a friend is spending, being paid back is a
+# reimbursement. `balance_patterns` are the ONLY rail shapes that are transfers — your own money moving
+# between the bank and your balance on the rail (a cash-out, an add-funds). Matched the same way, and only
+# on a description that already matched the rail's `patterns`.
+#
+# Matched case-insensitively as a SUBSTRING against the raw description, BEFORE the ordered cleanup rules.
+#
+# EXTEND THIS AGAINST REAL DATA: bank rail markers vary. If a P2P row is still landing as its own merchant,
+# open its raw description (transaction.description_raw) and add the identifying substring to the right rail
+# below. Adding a pattern is a one-line diff; no code change needed.
+
+version: 1
+
+rails:
+  - key: venmo
+    name: Venmo
+    patterns:
+      - "VENMO"
+      - "PAYPAL *VENMO"
+    balance_patterns:
+      - "CASHOUT"
+      - "CASH OUT"
+      - "ADD FUNDS"
+      - "ADDFUNDS"
+      - "TRANSFER TO VENMO"
+      - "TRANSFER FROM VENMO"
+  - key: zelle
+    name: Zelle
+    patterns:
+      - "ZELLE"
+      - "QUICKPAY WITH ZELLE"
+  - key: cashapp
+    name: Cash App
+    patterns:
+      - "CASH APP"
+      - "CASHAPP*"
+      - "SQC*CASH APP"
+      - "SQUARE CASH"
+    balance_patterns:
+      - "CASH OUT"
+      - "CASHOUT"
+      - "ADD CASH"

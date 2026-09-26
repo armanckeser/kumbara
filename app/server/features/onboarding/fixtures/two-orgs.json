@@ -1,0 +1,41 @@
+{
+  "accounts": [
+    {
+      "id": "ACT-fixture-checking",
+      "name": "Everyday Checking",
+      "currency": "USD",
+      "balance": "2143.55",
+      "available-balance": "2043.55",
+      "balance-date": 1719619200,
+      "org": {
+        "id": "ORG-northbank",
+        "name": "Northbank",
+        "domain": "northbank.example"
+      }
+    },
+    {
+      "id": "ACT-fixture-savings",
+      "name": "Rainy Day Savings",
+      "currency": "USD",
+      "balance": "11820.00",
+      "balance-date": 1719619200,
+      "org": {
+        "id": "ORG-northbank",
+        "name": "Northbank",
+        "domain": "northbank.example"
+      }
+    },
+    {
+      "id": "ACT-fixture-card",
+      "name": "Travel Rewards Card",
+      "currency": "USD",
+      "balance": "-642.18",
+      "balance-date": 1719619200,
+      "org": {
+        "id": "ORG-summit",
+        "name": "Summit Credit Union",
+        "domain": "summitcu.example"
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "kumbara",
+  "private": true,
+  "scripts": {
+    "prepare": "./scripts/prepare-effect.sh"
+  }
+}

@@ -1,0 +1,13 @@
+# Payment patterns (Appendix B.2) — substrings that mark a row as a credit-card payment / transfer
+# rather than a purchase. SHARED with transfer detection Pass 1 (Pitch 05): declared once so the two
+# consumers never drift. Matched case-insensitively against the raw description.
+
+version: 1
+
+patterns:
+  - "AUTOPAY"
+  - "EPAYMENT"
+  - "CREDIT CRD"
+  - "CARD PAYMENT"
+  - "AUTO-PMT"
+  - "PAYMENT - THANK YOU"

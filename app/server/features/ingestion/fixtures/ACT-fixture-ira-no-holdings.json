@@ -1,0 +1,17 @@
+{
+  "account": {
+    "sfin_account_id": "ACT-fixture-ira-no-holdings",
+    "name": "Rollover IRA",
+    "type": "investment"
+  },
+  "batches": {
+    "live": [
+      {
+        "id": "TRN-ira-rollover",
+        "posted": 1719619200,
+        "amount": "-250.00",
+        "description": "ROLLOVER DEPOSIT"
+      }
+    ]
+  }
+}

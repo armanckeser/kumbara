@@ -1,0 +1,117 @@
+{"key":"blue bottle coffee","name":"Blue Bottle Coffee","category":"Restaurants","kind":"merchant","mcc":5814,"aliases":["blue bottle"]}
+{"key":"delta air lines","name":"Delta Air Lines","category":"Fun Budget","kind":"merchant","mcc":3058,"aliases":["delta air"]}
+{"key":"shell","name":"Shell","category":"Gas","kind":"merchant","mcc":5541,"aliases":["shell oil"]}
+{"key":"whole foods","name":"Whole Foods Market","category":"Groceries","kind":"merchant","mcc":5411,"aliases":["wholefds mkt","wholefds"]}
+{"key":"target","name":"Target","category":"Shared Shopping","kind":"merchant","mcc":5310}
+{"key":"amazon","name":"Amazon","category":"Shared Shopping","kind":"merchant","mcc":5942,"aliases":["amzn mktp us","amzn mktp","amzn","amazon market","amazon market r","amazon mktpl","amazon.com","amazon prime"]}
+{"key":"amc","name":"AMC Theatres","category":"Fun Budget","kind":"merchant","mcc":7832,"aliases":["amc theatres","amc theaters","amc online"]}
+{"key":"netflix","name":"Netflix","category":"Fun Budget","kind":"merchant","mcc":4899,"aliases":["netflix.com"]}
+{"key":"uber eats","name":"Uber Eats","category":"Restaurants","kind":"merchant","mcc":5814,"aliases":["uber eats"]}
+{"key":"venmo","name":"Venmo","kind":"p2p","aliases":["transfer to venmo","transfer from venmo"]}
+{"key":"zelle","name":"Zelle","kind":"p2p","aliases":["zelle transfer"]}
+{"key":"cashapp","name":"Cash App","kind":"p2p"}
+{"key":"transfer","name":"Transfer","kind":"transfer","aliases":["transfer from checking","transfer to savings","to checking","from checking","to savings","from savings","deposit from savings","to account","from account","standard transfer","deposit","mobile check deposit","check","instant deposit"]}
+{"key":"chase credit crd","name":"Chase Card Payment","kind":"payment","aliases":["chase credit","chase credit card"]}
+{"key":"amex epayment","name":"Amex Payment","kind":"payment","aliases":["american express credit card"]}
+{"key":"auto pmt","name":"Card Payment","kind":"payment","aliases":["auto-pmt","payment","automatic payment","credit card payment"]}
+{"key":"starbucks","name":"Starbucks","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"grubhub","name":"Grubhub","category":"Restaurants","kind":"merchant","mcc":5812}
+{"key":"chipotle","name":"Chipotle","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"chick-fil-a","name":"Chick-fil-A","category":"Restaurants","kind":"merchant","mcc":5814,"aliases":["chick fil a"]}
+{"key":"dunkin'","name":"Dunkin'","category":"Restaurants","kind":"merchant","mcc":5814,"aliases":["dunkin","dunkin donuts"]}
+{"key":"shake shack","name":"Shake Shack","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"mcdonald's","name":"McDonald's","category":"Restaurants","kind":"merchant","mcc":5814,"aliases":["mcdonalds"]}
+{"key":"five guys","name":"Five Guys","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"in-n-out burger","name":"In-N-Out Burger","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"popeyes","name":"Popeyes","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"panda express","name":"Panda Express","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"subway","name":"Subway","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"qdoba","name":"Qdoba","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"krispy kreme","name":"Krispy Kreme","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"din tai fung","name":"Din Tai Fung","category":"Restaurants","kind":"merchant","mcc":5812}
+{"key":"eataly","name":"Eataly","category":"Restaurants","kind":"merchant","mcc":5812}
+{"key":"jersey mike's subs","name":"Jersey Mike's Subs","category":"Restaurants","kind":"merchant","mcc":5814,"aliases":["jersey mike's","jersey mikes"]}
+{"key":"pret a manger","name":"Pret A Manger","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"la colombe","name":"La Colombe","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"sweetgreen","name":"Sweetgreen","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"levain","name":"Levain Bakery","category":"Restaurants","kind":"merchant","mcc":5462,"aliases":["levain bakery"]}
+{"key":"salt & straw","name":"Salt & Straw","category":"Restaurants","kind":"merchant","mcc":5814}
+{"key":"costco","name":"Costco","category":"Groceries","kind":"merchant","mcc":5411}
+{"key":"trader joe's","name":"Trader Joe's","category":"Groceries","kind":"merchant","mcc":5411,"aliases":["trader joes"]}
+{"key":"h mart","name":"H Mart","category":"Groceries","kind":"merchant","mcc":5411,"aliases":["hmart"]}
+{"key":"erewhon market","name":"Erewhon Market","category":"Groceries","kind":"merchant","mcc":5411,"aliases":["erewhon"]}
+{"key":"lidl","name":"Lidl","category":"Groceries","kind":"merchant","mcc":5411}
+{"key":"walmart","name":"Walmart","category":"Groceries","kind":"merchant","mcc":5411}
+{"key":"green chef","name":"Green Chef","category":"Groceries","kind":"merchant","mcc":5411}
+{"key":"costco gas","name":"Costco Gas","category":"Gas","kind":"merchant","mcc":5541}
+{"key":"bp gas","name":"BP","category":"Gas","kind":"merchant","mcc":5541,"aliases":["bp"]}
+{"key":"exxonmobil","name":"ExxonMobil","category":"Gas","kind":"merchant","mcc":5541,"aliases":["exxon","mobil"]}
+{"key":"chevron","name":"Chevron","category":"Gas","kind":"merchant","mcc":5541}
+{"key":"arco","name":"Arco","category":"Gas","kind":"merchant","mcc":5541}
+{"key":"speedway","name":"Speedway","category":"Gas","kind":"merchant","mcc":5541}
+{"key":"texaco","name":"Texaco","category":"Gas","kind":"merchant","mcc":5541}
+{"key":"uber trip","name":"Uber","category":"Taxi","kind":"merchant","mcc":4121,"aliases":["uber"]}
+{"key":"lyft","name":"Lyft","category":"Taxi","kind":"merchant","mcc":4121}
+{"key":"mta omny","name":"MTA OMNY","category":"Public Transport","kind":"merchant","mcc":4111,"aliases":["omny"]}
+{"key":"new jersey transit","name":"NJ Transit","category":"Public Transport","kind":"merchant","mcc":4111,"aliases":["nj transit"]}
+{"key":"septa","name":"SEPTA","category":"Public Transport","kind":"merchant","mcc":4111}
+{"key":"mbta","name":"MBTA","category":"Public Transport","kind":"merchant","mcc":4111}
+{"key":"e-zpass","name":"E-ZPass","category":"Public Transport","kind":"merchant","mcc":4784,"aliases":["ezpass"]}
+{"key":"jr east japan","name":"JR East","category":"Public Transport","kind":"merchant","mcc":4111}
+{"key":"utah transit","name":"Utah Transit Authority","category":"Public Transport","kind":"merchant","mcc":4111}
+{"key":"parkmobile","name":"ParkMobile","category":"Parking","kind":"merchant","mcc":7523}
+{"key":"spothero","name":"SpotHero","category":"Parking","kind":"merchant","mcc":7523}
+{"key":"laz parking","name":"LAZ Parking","category":"Parking","kind":"merchant","mcc":7523}
+{"key":"peacock","name":"Peacock","category":"Fun Budget","kind":"merchant","mcc":4899}
+{"key":"google one","name":"Google One","category":"Fun Budget","kind":"merchant","mcc":4816}
+{"key":"audible","name":"Audible","category":"Fun Budget","kind":"merchant","mcc":5942}
+{"key":"playstation","name":"PlayStation","category":"Fun Budget","kind":"merchant","mcc":5816}
+{"key":"airbnb","name":"Airbnb","category":"Fun Budget","kind":"merchant","mcc":7011}
+{"key":"expedia","name":"Expedia","category":"Fun Budget","kind":"merchant","mcc":4722}
+{"key":"united airlines","name":"United Airlines","category":"Fun Budget","kind":"merchant","mcc":3000,"aliases":["united air"]}
+{"key":"spirit airlines","name":"Spirit Airlines","category":"Fun Budget","kind":"merchant","mcc":3260}
+{"key":"spotify","name":"Spotify","category":"Fun Budget","kind":"merchant","mcc":4899,"aliases":["spotify.com"]}
+{"key":"ikea","name":"IKEA","category":"Shared Shopping","kind":"merchant","mcc":5712}
+{"key":"marshalls","name":"Marshalls","category":"Shared Shopping","kind":"merchant","mcc":5651}
+{"key":"tj maxx","name":"T.J. Maxx","category":"Shared Shopping","kind":"merchant","mcc":5651,"aliases":["tjmaxx","t j maxx"]}
+{"key":"etsy","name":"Etsy","category":"Shared Shopping","kind":"merchant","mcc":5947}
+{"key":"ebay","name":"eBay","category":"Shared Shopping","kind":"merchant","mcc":5399}
+{"key":"crate & barrel","name":"Crate & Barrel","category":"Shared Shopping","kind":"merchant","mcc":5712}
+{"key":"us postal service","name":"US Postal Service","category":"Shared Shopping","kind":"merchant","mcc":9402,"aliases":["usps"]}
+{"key":"ups","name":"UPS","category":"Shared Shopping","kind":"merchant","mcc":4215}
+{"key":"fedex","name":"FedEx","category":"Shared Shopping","kind":"merchant","mcc":4215,"aliases":["fedex office"]}
+{"key":"poshmark","name":"Poshmark","category":"Shared Shopping","kind":"merchant","mcc":5651}
+{"key":"direct payment: irs","name":"IRS Payment","category":"Extra","kind":"merchant"}
+{"key":"wise","name":"Wise","kind":"transfer"}
+{"key":"reformation","name":"Reformation","category":"Shopping","kind":"merchant"}
+{"key":"charles schwab","name":"Charles Schwab","category":"Investment","kind":"merchant"}
+{"key":"vanguard","name":"Vanguard","category":"Investment","kind":"merchant"}
+{"key":"sephora","name":"Sephora","category":"Wellbeing","kind":"merchant"}
+{"key":"interest income","name":"Interest Income","category":"Investment","kind":"merchant"}
+{"key":"stubhub!","name":"StubHub","category":"Fun Budget","kind":"merchant"}
+{"key":"apple store","name":"Apple Store","category":"Shared Shopping","kind":"merchant"}
+{"key":"quince","name":"Quince","category":"Shopping","kind":"merchant"}
+{"key":"dividend","name":"Dividend","category":"Investment","kind":"merchant"}
+{"key":"dividend reinvestment","name":"Dividend Reinvestment","category":"Investment","kind":"merchant"}
+{"key":"revolve","name":"Revolve","category":"Shopping","kind":"merchant"}
+{"key":"federal tax refund","name":"Federal Tax Refund","category":"Extra","kind":"merchant"}
+{"key":"apple","name":"Apple","category":"Shared Shopping","kind":"merchant"}
+{"key":"aritzia","name":"Aritzia","category":"Shopping","kind":"merchant"}
+{"key":"lululemon athletica","name":"Lululemon","category":"Wellbeing","kind":"merchant"}
+{"key":"samsung","name":"Samsung","category":"Shared Shopping","kind":"merchant"}
+{"key":"verizon","name":"Verizon","category":"Cell Phone","kind":"merchant"}
+{"key":"anthropologie","name":"Anthropologie","category":"Shopping","kind":"merchant"}
+{"key":"google fi wireless","name":"Google Fi","category":"Cell Phone","kind":"merchant"}
+{"key":"the real","name":"The RealReal","category":"Shopping","kind":"merchant"}
+{"key":"seatgeek","name":"SeatGeek","category":"Fun Budget","kind":"merchant"}
+{"key":"bloomingdale's","name":"Bloomingdale's","category":"Shopping","kind":"merchant"}
+{"key":"uniqlo","name":"Uniqlo","category":"Shared Shopping","kind":"merchant"}
+{"key":"nordstrom","name":"Nordstrom","category":"Shopping","kind":"merchant"}
+{"key":"at&t","name":"AT&T","category":"Cell Phone","kind":"merchant"}
+{"key":"cvs","name":"CVS","category":"Health","kind":"merchant"}
+{"key":"madewell","name":"Madewell","category":"Shopping","kind":"merchant"}
+{"key":"barnes & noble","name":"Barnes & Noble","category":"Fun Budget","kind":"merchant"}
+{"key":"lush","name":"Lush","category":"Wellbeing","kind":"merchant"}
+{"key":"duane reade","name":"Duane Reade","category":"Health","kind":"merchant"}
+{"key":"recreation.gov","name":"Recreation.gov","category":"Fun Budget","kind":"merchant"}
+{"key":"parking meter","name":"Parking Meter","category":"Parking","kind":"merchant"}

@@ -1,0 +1,37 @@
+{
+  "account": {
+    "sfin_account_id": "ACT-fixture-brokerage-snapshot",
+    "name": "Snapshot Brokerage",
+    "type": "investment"
+  },
+  "batches": {
+    "live": [
+      {
+        "id": "TRN-snap-contribution",
+        "posted": 1719619200,
+        "amount": "-500.00",
+        "description": "ACH CONTRIBUTION"
+      }
+    ]
+  },
+  "holdings": [
+    {
+      "sfin_holding_id": "HLD-snap-vti",
+      "symbol": "VTI",
+      "description": "Vanguard Total Stock Market ETF",
+      "shares": "0",
+      "cost_basis": "1000.00",
+      "market_value": "0.00",
+      "currency": "USD"
+    },
+    {
+      "sfin_holding_id": "HLD-snap-bnd",
+      "symbol": "BND",
+      "description": "Vanguard Total Bond Market ETF",
+      "shares": "0",
+      "cost_basis": "900.00",
+      "market_value": "0.00",
+      "currency": "USD"
+    }
+  ]
+}

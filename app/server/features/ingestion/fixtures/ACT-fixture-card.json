@@ -1,0 +1,25 @@
+{
+  "account": {
+    "sfin_account_id": "ACT-fixture-card",
+    "name": "Travel Rewards Card",
+    "type": "credit_card"
+  },
+  "batches": {
+    "posted": [
+      {
+        "id": "TRN-card-flight",
+        "posted": 1719619200,
+        "amount": "-321.40",
+        "description": "DELTA AIR 0062213344 ATLANTA GA",
+        "payee": "Delta Air Lines"
+      },
+      {
+        "id": "TRN-card-coffee",
+        "posted": 1719619200,
+        "amount": "-6.25",
+        "description": "SQ *BLUE BOTTLE COFFEE OAKLAND CA",
+        "payee": "Blue Bottle Coffee"
+      }
+    ]
+  }
+}

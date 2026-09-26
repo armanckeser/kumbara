@@ -1,0 +1,168 @@
+name: Release
+
+# Push a git tag / publish a GitHub Release → build arm64 images → push to ghcr. The Pi then deploys by
+# `docker compose -f docker-compose.prod.yml pull && up -d` (see app/DEPLOY.md) instead of building from
+# source on the box.
+#
+# R9: this BUILDS the api image (which bundles index.prod.ts, the real-feed server) but never RUNS it, and no
+# real transaction data lives in the repo. The real feed is only bound when the Pi runs the image. Building
+# here is not an R9 violation.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag (defaults to latest)'
+        required: false
+        default: 'latest'
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/armanckeser/kumbara-api
+  FRONTEND_IMAGE: ghcr.io/armanckeser/kumbara-frontend
+
+jobs:
+  build-api:
+    # Native arm64 runner — the Pi is arm64 and it's our only build target, so building here avoids the
+    # QEMU emulation the x64 runners needed (~6.5 min → ~1 min). No setup-qemu step required.
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.API_IMAGE }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      # Build context is the app/ workspace root; the api Dockerfile lives at app/server/Dockerfile.
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ./app
+          file: ./app/server/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+          provenance: false
+          sbom: false
+
+  build-frontend:
+    # Native arm64 runner — the Pi is arm64 and it's our only build target, so building here avoids the
+    # QEMU emulation the x64 runners needed (~6.5 min → ~1 min). No setup-qemu step required.
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      # VITE_API_URL is baked at build time. It MUST be empty so the SPA calls relative /api and /api/electric,
+      # which nginx proxies to the api container (same origin). A non-empty value here silently kills every
+      # Electric collection in prod.
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ./app
+          file: ./app/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_API_URL=
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+          provenance: false
+          sbom: false
+
+  # Publish app/docker-compose.prod.yml itself as an OCI artifact, so the Pi deploys a versioned stack
+  # (`docker compose -f oci://.../kumbara-stack:vX.Y.Z up -d -y`) instead of a file that got there by rsync
+  # and drifts. Runs last: --resolve-image-digests can only pin digests once both images exist in ghcr.
+  #
+  # R9: this publishes a compose FILE containing no real data (every secret is a ${VAR} placeholder, and
+  # --with-env is deliberately absent). Nothing here reads the live feed.
+  publish-stack:
+    needs: [build-api, build-frontend]
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        # The compose file lives in app/, and publish resolves relative paths against its own directory.
+        working-directory: app
+    env:
+      # The release tag for a published Release, or the manual input for workflow_dispatch. Exported as TAG
+      # because the compose file's image refs are `...:${TAG:-latest}` — publish keeps ${TAG} symbolic in the
+      # artifact, but needs it resolved HERE to look up each image's digest.
+      TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      # The runner's preinstalled Compose is 2.38.2. Pin the same version the Pi consumes with so the
+      # artifact and its consumer can never disagree.
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v2
+        with:
+          version: v5.3.1
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # -y is mandatory in CI: publish otherwise blocks on stdin asking to confirm the environment
+      # declarations. --with-env is deliberately ABSENT — it would upload real secret VALUES into the
+      # artifact. Only the ${VAR} placeholders ship; the Pi resolves them from ~/kumbara/.env.
+      - name: Publish compose stack artifact
+        run: |
+          docker compose -f docker-compose.prod.yml publish \
+            --resolve-image-digests -y \
+            ghcr.io/armanckeser/kumbara-stack:"$TAG"
+      - name: Show what consumers will get
+        run: docker compose -f oci://ghcr.io/armanckeser/kumbara-stack:"$TAG" config

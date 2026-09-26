@@ -1,0 +1,23 @@
+# POS-prefix categorization — high-signal card-network prefixes that name a category (confidence 0.88).
+#
+# These prefixes sit on the RAW description (description_raw), which retains them; the merchant_key has
+# already had them stripped by the identity prefixes in normalization_rules.yaml, so this is a SEPARATE
+# provider that reads the raw string. At the default gates 0.88 AUTO-APPLIES (> 0.85), but a real KB
+# default (0.90) still wins — so a Toast charge for a merchant the KB knows keeps the KB's category.
+#
+# Rules are matched case-insensitively as a PREFIX (startsWith) against description_raw, in file order
+# (first hit wins). ONLY add a prefix that maps to exactly ONE category reliably. Deliberately excluded:
+# bare "SQ *" (Square fronts food AND retail), "PP*"/"PAYPAL *" (any merchant). `category` is a NAME
+# resolved to an id at load time against the seeded HOUSEHOLD categories (person_id IS NULL).
+version: 1
+rules:
+  # Toast — restaurant point-of-sale. "TST*" is Toast's card descriptor; almost always a restaurant.
+  - pattern: "TST*"
+    category: Restaurants
+  - pattern: "TST "
+    category: Restaurants
+  # Ticketmaster — events/entertainment.
+  - pattern: "TM *"
+    category: Fun Budget
+  - pattern: "TICKETMASTER"
+    category: Fun Budget

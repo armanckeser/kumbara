@@ -1,0 +1,20 @@
+# Transfer patterns — substrings that mark a row as an internal money movement (own-account transfer, ACH
+# push/pull, web transfer) rather than a purchase. Sibling of payment_patterns.yaml: payment = a credit-
+# card bill being paid, transfer = money moving between accounts. Both feed merchant.kind at resolution so
+# these rows skip the categorize-inbox and feed link-detection proposals. Matched case-insensitively as a
+# substring against the raw description. P2P rails (Venmo/Zelle/Cash App) stay in p2p_patterns.yaml — they
+# collapse the merchant IDENTITY, which this list does not.
+
+version: 1
+
+patterns:
+  - "TRANSFER TO"
+  - "TRANSFER FROM"
+  - "INTERNAL TRANSFER"
+  - "ONLINE TRANSFER"
+  - "ONLINE XFER"
+  - "WEB XFER"
+  - "WEB PYMT"
+  - "ACH TRANSFER"
+  - "ACH DEBIT"
+  - "ACH CREDIT"

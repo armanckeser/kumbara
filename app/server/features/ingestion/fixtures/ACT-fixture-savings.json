@@ -1,0 +1,18 @@
+{
+  "account": {
+    "sfin_account_id": "ACT-fixture-savings",
+    "name": "Rainy Day Savings",
+    "type": "savings"
+  },
+  "batches": {
+    "posted": [
+      {
+        "id": "TRN-sav-transfer-in",
+        "posted": 1719619200,
+        "amount": "500.00",
+        "description": "TRANSFER FROM CHECKING",
+        "payee": "Transfer"
+      }
+    ]
+  }
+}

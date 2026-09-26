@@ -1,0 +1,60 @@
+{
+  "account": {
+    "sfin_account_id": "ACT-fixture-checking",
+    "name": "Fixture Checking",
+    "type": "checking"
+  },
+  "batches": {
+    "pending": [
+      {
+        "id": "TRN-pending-grocery",
+        "posted": 1719446400,
+        "amount": "-84.00",
+        "description": "AplPay TST* BLUE BOTTLE COOAKLAND CA",
+        "payee": "Blue Bottle Coffee",
+        "pending": true
+      },
+      {
+        "id": "TRN-pending-fuel",
+        "posted": 1719446400,
+        "amount": "-45.00",
+        "description": "SHELL OIL 57442318 ATLANTA GA",
+        "payee": "Shell",
+        "pending": true
+      },
+      {
+        "id": "TRN-pending-dinner",
+        "posted": 1719446400,
+        "amount": "-50.00",
+        "description": "SQ *HARBOR LANE ATLANTA GA",
+        "payee": "Harbor Lane",
+        "pending": true,
+        "is_restaurant": true
+      }
+    ],
+    "posted": [
+      {
+        "id": "TRN-posted-grocery",
+        "posted": 1719619200,
+        "amount": "-84.00",
+        "description": "TST* BLUE BOTTLE COFFEE OAKLAND CA",
+        "payee": "Blue Bottle Coffee"
+      },
+      {
+        "id": "TRN-posted-fuel",
+        "posted": 1719619200,
+        "amount": "-45.00",
+        "description": "SHELL OIL 57442318 ATLANTA GA",
+        "payee": "Shell"
+      },
+      {
+        "id": "TRN-posted-dinner",
+        "posted": 1719619200,
+        "amount": "-58.50",
+        "description": "SQ *HARBOR LANE ATLANTA GA",
+        "payee": "Harbor Lane",
+        "is_restaurant": true
+      }
+    ]
+  }
+}

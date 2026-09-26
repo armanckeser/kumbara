@@ -1,0 +1,43 @@
+{
+  "account": {
+    "sfin_account_id": "ACT-fixture-brokerage",
+    "name": "Individual Brokerage",
+    "type": "investment"
+  },
+  "batches": {
+    "live": [
+      {
+        "id": "TRN-brk-buy-aapl",
+        "posted": 1719619200,
+        "amount": "-1000.00",
+        "description": "BUY 5 AAPL @ 200.00"
+      },
+      {
+        "id": "TRN-brk-dividend",
+        "posted": 1719705600,
+        "amount": "12.50",
+        "description": "DIVIDEND AAPL"
+      }
+    ]
+  },
+  "holdings": [
+    {
+      "sfin_holding_id": "HLD-aapl",
+      "symbol": "AAPL",
+      "description": "Apple Inc.",
+      "shares": "5",
+      "cost_basis": "1000.00",
+      "market_value": "1250.00",
+      "currency": "USD"
+    },
+    {
+      "sfin_holding_id": "HLD-msft",
+      "symbol": "MSFT",
+      "description": "Microsoft Corp.",
+      "shares": "3",
+      "cost_basis": "900.00",
+      "market_value": "1200.00",
+      "currency": "USD"
+    }
+  ]
+}

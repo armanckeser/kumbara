@@ -1,0 +1,12 @@
+node_modules
+dist
+.DS_Store
+server/.env
+server/node_modules
+server/dist
+*.log
+.evolve/active/
+# Local TLS certs (mkcert). The key must never be committed.
+certs/
+# TanStack Router/Start local build cache.
+.tanstack/

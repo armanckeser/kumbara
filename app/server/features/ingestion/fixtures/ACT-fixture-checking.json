@@ -1,0 +1,31 @@
+{
+  "account": {
+    "sfin_account_id": "ACT-fixture-checking",
+    "name": "Everyday Checking",
+    "type": "checking",
+    "org": {
+      "id": "org-greendale-bank",
+      "name": "Greendale Bank",
+      "domain": "greendalebank.example",
+      "url": "https://greendalebank.example"
+    }
+  },
+  "batches": {
+    "posted": [
+      {
+        "id": "TRN-chk-grocery",
+        "posted": 1719619200,
+        "amount": "-84.00",
+        "description": "TST* BLUE BOTTLE COFFEE OAKLAND CA",
+        "payee": "Blue Bottle Coffee"
+      },
+      {
+        "id": "TRN-chk-fuel",
+        "posted": 1719619200,
+        "amount": "-45.00",
+        "description": "SHELL OIL 57442318 ATLANTA GA",
+        "payee": "Shell"
+      }
+    ]
+  }
+}

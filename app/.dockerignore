@@ -1,0 +1,20 @@
+# Keep the build context lean and free of secrets / real data.
+node_modules
+server/node_modules
+dist
+server/dist
+
+# Secrets never enter the image (they arrive as compose env at runtime).
+.env
+server/.env
+.env.prod
+
+# R9: real-layer output and anonymizer staging must never enter an image.
+server/features/ingestion/.real-output/
+tools/.anonymize-staging/
+.real-output/
+
+# Local tooling noise.
+.git
+*.log
+.DS_Store

@@ -1,0 +1,20 @@
+# Vendored Effect source — local research aid for the effect-ts skill, re-cloned by `prepare`.
+.repos/effect
+
+# Real-layer output — populated only when the USER runs real-run.ts / anonymize.ts against the live
+# SimpleFIN feed. Never committed; the coding agent never reads these.
+app/server/features/ingestion/.real-output/
+app/tools/.anonymize-staging/
+
+node_modules
+.DS_Store
+*.log
+
+# Machine-local Claude Code settings (per-developer permissions/state).
+.claude/settings.local.json
+
+# Ephemeral git worktrees for parallel pitch builds — never committed.
+.claude/worktrees/
+
+# JetBrains IDE
+.idea/

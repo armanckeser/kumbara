@@ -1,0 +1,28 @@
+{
+  "accounts": [
+    {
+      "id": "ACT-fixture-brokerage-snapshot",
+      "name": "Snapshot Brokerage",
+      "currency": "USD",
+      "balance": "2450.00",
+      "balance-date": 1719619200,
+      "org": {
+        "id": "ORG-vista",
+        "name": "Vista Investments",
+        "domain": "vista.example"
+      }
+    },
+    {
+      "id": "ACT-fixture-ira-no-holdings",
+      "name": "Rollover IRA",
+      "currency": "USD",
+      "balance": "10000.00",
+      "balance-date": 1719619200,
+      "org": {
+        "id": "ORG-vista",
+        "name": "Vista Investments",
+        "domain": "vista.example"
+      }
+    }
+  ]
+}

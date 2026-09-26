@@ -1,0 +1,114 @@
+# Keyword dictionary — the last-resort categorization provider (§4.2 priority 5, confidence 0.50).
+#
+# When merchant-memory and the KB both miss, a substring of the transaction's display text can still
+# suggest a category. This is the weakest provider by design: at the default gates a 0.50 keyword hit only
+# PRE-LOADS a review chip, it never auto-applies — "never guess wildly". Rules are matched case-insensitively
+# as substrings, in order (first hit wins), so put the more specific pattern first. `category` is a NAME,
+# resolved to an id at load time against the seeded HOUSEHOLD categories (person_id IS NULL) — currently
+# Restaurants / Groceries / Gas / Taxi / Public Transport / Parking / Fun Budget / Shared Shopping — so the
+# seed never carries an opaque uuid and never points at a person-scoped line (which auto-categorization
+# cannot resolve).
+version: 1
+rules:
+  # Restaurants — eating out. "uber eats" MUST precede the bare "uber" rule below (else an Uber Eats charge
+  # would categorize as a taxi).
+  - pattern: restaurant
+    category: Restaurants
+  - pattern: coffee
+    category: Restaurants
+  - pattern: cafe
+    category: Restaurants
+  - pattern: bakery
+    category: Restaurants
+  - pattern: pizza
+    category: Restaurants
+  - pattern: grill
+    category: Restaurants
+  - pattern: doordash
+    category: Restaurants
+  - pattern: uber eats
+    category: Restaurants
+  - pattern: grubhub
+    category: Restaurants
+  - pattern: deliveroo
+    category: Restaurants
+  - pattern: sushi
+    category: Restaurants
+  - pattern: ramen
+    category: Restaurants
+  - pattern: taqueria
+    category: Restaurants
+  - pattern: taco
+    category: Restaurants
+  - pattern: bagel
+    category: Restaurants
+  - pattern: burger
+    category: Restaurants
+  - pattern: noodle
+    category: Restaurants
+  - pattern: creamery
+    category: Restaurants
+  - pattern: gelat
+    category: Restaurants
+  - pattern: brewery
+    category: Restaurants
+  - pattern: tavern
+    category: Restaurants
+
+  # Groceries — food in.
+  - pattern: grocery
+    category: Groceries
+  - pattern: market
+    category: Groceries
+  - pattern: supermarket
+    category: Groceries
+  - pattern: whole foods
+    category: Groceries
+  - pattern: trader joe
+    category: Groceries
+
+  # Gas / fuel (the CAR line; utilities are "Gas/Electric", not keyword-detectable from a merchant name).
+  - pattern: fuel
+    category: Gas
+  - pattern: gasoline
+    category: Gas
+  - pattern: shell
+    category: Gas
+  - pattern: chevron
+    category: Gas
+
+  # Taxi / rideshare.
+  - pattern: uber
+    category: Taxi
+  - pattern: lyft
+    category: Taxi
+
+  # Public transport — trains / buses / subway.
+  - pattern: transit
+    category: Public Transport
+  - pattern: mbta
+    category: Public Transport
+  - pattern: metro
+    category: Public Transport
+
+  # Parking.
+  - pattern: parking
+    category: Parking
+
+  # Travel + subscriptions have no dedicated line in this budget — both fold into Fun Budget (Wants).
+  - pattern: airline
+    category: Fun Budget
+  - pattern: airlines
+    category: Fun Budget
+  - pattern: hotel
+    category: Fun Budget
+  - pattern: airbnb
+    category: Fun Budget
+  - pattern: netflix
+    category: Fun Budget
+  - pattern: spotify
+    category: Fun Budget
+  - pattern: subscription
+    category: Fun Budget
+  - pattern: prime
+    category: Fun Budget

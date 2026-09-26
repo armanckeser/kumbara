@@ -1,0 +1,224 @@
+# Production stack for the Pi, discovered by Cosmos via the labels below.
+#
+# ⚠️  On the Pi the api runs index.prod.ts, which binds the REAL SimpleFIN sources (R9). The agent may
+#     build/run this stack locally against a synthetic DB to verify; R9 forbids binding a real token or
+#     reading the deployed prod URL, not building or running the code path offline. ⚠️
+#
+# Only the frontend is published to the host; postgres/electric/api talk over the compose network. nginx
+# (frontend) serves the SPA and proxies /api → api, so web + API are one origin (Electric shapes included).
+#
+# Deploy: tag a release → GitHub Actions builds+pushes arm64 images to ghcr AND publishes THIS FILE as an
+# OCI artifact (ghcr.io/armanckeser/kumbara-stack:<tag>) → on the Pi
+# `docker compose -f oci://ghcr.io/armanckeser/kumbara-stack:vX.Y.Z up -d -y` (see DEPLOY.md). Nothing is
+# rsynced; the compose file is versioned with the images it expects. The api/frontend services carry both
+# `image:` (pull from ghcr) and `build:` (source fallback if the registry is unreachable).
+#
+# Secrets are NOT read from server/.env here — see the api service. They arrive as ${VAR} interpolation
+# from the deploy directory's .env (~/kumbara/.env on the Pi), which is the durable owner of the auth vars.
+
+# Pin the project name. Compose normally derives it from the directory basename, but an oci:// source has
+# no project directory, so the name would silently depend on whichever CWD you invoke from. The real volume
+# names are <project>_kumbara-pgdata / -electricdata: deploying under any other project name creates NEW
+# EMPTY volumes and orphans the live ones. The existing stack was created as `kumbara` — do not change this.
+name: kumbara
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kumbara-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    # Logical replication is what Electric's shapes ride on (same flags as dev).
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_replication_slots=10
+      - -c
+      - max_wal_senders=10
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - kumbara-pgdata:/var/lib/postgresql/data
+    labels:
+      - "cosmos-stack=kumbara"
+
+  electric:
+    image: electricsql/electric:1.7.6
+    container_name: kumbara-electric
+    restart: unless-stopped
+    environment:
+      # Host is the CONTAINER NAME (kumbara-postgres), not the compose service alias `postgres`: a Cosmos
+      # per-container Update drops the service alias but never the container_name. See the api service note.
+      DATABASE_URL: postgresql://postgres:password@kumbara-postgres:5432/app?sslmode=disable
+      # Insecure is acceptable: electric is never host-published, reachable only via the api's /api/electric
+      # proxy on the internal network, behind Cosmos auth.
+      ELECTRIC_INSECURE: "true"
+      ELECTRIC_STORAGE_DIR: /var/lib/electric/persistent
+    volumes:
+      - kumbara-electricdata:/var/lib/electric/persistent
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "cosmos-stack=kumbara"
+
+  api:
+    # PULL from ghcr if the image exists (the normal path: CI built it on release), else BUILD from source
+    # (offline / registry-down fallback). TAG defaults to latest; set TAG=vX.Y.Z to pin or roll back.
+    image: ghcr.io/armanckeser/kumbara-api:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: kumbara-api
+    restart: unless-stopped
+    # No `env_file:` — deliberately removed for the OCI-artifact deploy. `docker compose publish` rewrites
+    # every env_file path to an opaque <sha256>.env resolved against the CONSUMER's artifact cache dir, where
+    # it does not exist. With `required: false` that failure is SILENT, so an env_file here would look like it
+    # was supplying values while contributing nothing — a trap.
+    #
+    # Removing it is a verified no-op for this stack: the Pi's ~/kumbara/server/.env holds only DATABASE_URL,
+    # ELECTRIC_URL, PORT, TLS_CERT_FILE and TLS_KEY_FILE, and every one of those is already set explicitly in
+    # the `environment` block below (which outranks env_file anyway). Anything genuinely secret belongs in
+    # ~/kumbara/.env as a ${VAR} instead: interpolation resolves against the HOST CWD, never the cache dir,
+    # so it behaves identically for a local file and an oci:// source.
+    #
+    # These `environment` values are therefore the single source for the api's config. They matter especially
+    # for the TLS + web-serving keys: a dev server/.env may carry mkcert paths, but in prod the api must run
+    # plain HTTP behind nginx (Cosmos terminates TLS) and must NOT serve static (nginx owns the SPA).
+    environment:
+      # Hosts are CONTAINER NAMES (kumbara-postgres / kumbara-electric), not compose service aliases. A Cosmos
+      # per-container Update recreates a container without re-applying compose network aliases, so `postgres`/
+      # `electric` come back unresolvable (Aliases:null); the container_name is always in Docker's DNSNames and
+      # survives every recreate. See the note below and app/nginx.conf.
+      DATABASE_URL: postgresql://postgres:password@kumbara-postgres:5432/app
+      ELECTRIC_URL: http://kumbara-electric:3000
+      PORT: "4000"
+      HOST: 0.0.0.0
+      # Plain HTTP: nginx proxies to it, Cosmos terminates TLS. Blank neutralizes any inherited cert paths.
+      TLS_CERT_FILE: ""
+      TLS_KEY_FILE: ""
+      # nginx serves the SPA; the api is API-only. Off even though NODE_ENV=production (which would default it on).
+      SERVE_WEB: "0"
+      # Background pull cadence (minutes); 0 disables the schedule (manual "Sync now" still works).
+      # Daily: SimpleFIN caps at 24 calls/24h and sync pulls once per connection, so 1440 keeps us well
+      # under quota with room for manual syncs.
+      SYNC_INTERVAL_MINUTES: "1440"
+      # ---- Auth (OIDC BFF; the app self-gates, Cosmos is the OIDC PROVIDER) ----
+      # The app registers as an OIDC client of Cosmos so login stays inside the installed PWA (the Cosmos
+      # reverse-proxy gate broke the standalone PWA). Turn the Cosmos route's BUILT-IN auth OFF (keep TLS);
+      # this app is the gate. See DEPLOY.md "Auth" for the one-time client registration.
+      #
+      # ALL auth vars are declared here (empty defaults) so they appear in the Cosmos container-env UI and you
+      # can fill in the real values there. Every entry uses ${VAR:-default}, so the tracked file carries NO
+      # real secret (safe for git) and the actual values are set on the box (Cosmos UI / a Pi-local .env).
+      #
+      # OFF by default so a fresh deploy serves without breaking anything. Flip on ONLY AFTER you've created the
+      # Cosmos client AND set the three secrets below (an empty OIDC_*_SECRET with AUTH_ENABLED=1 fails at first
+      # request — set them first, then flip). Only "1" enables it.
+      AUTH_ENABLED: ${AUTH_ENABLED:-0}
+      # Cosmos issuer = the Cosmos main domain (discovery at $OIDC_ISSUER/.well-known/openid-configuration).
+      OIDC_ISSUER: ${OIDC_ISSUER:-https://cosmos.example.com}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-kumbara}
+      # Must equal a redirect URI registered on the Cosmos client. MUST be the FULL external https URL, not a
+      # bare path: behind nginx the api sees the request as http://localhost, so a path would build a wrong
+      # redirect_uri (http://localhost/auth/callback). Set it to https://<your-app-host>/auth/callback.
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-https://kumbara.example.com/auth/callback}
+      # Public base URL of the app behind Cosmos (post-login return URL). Set to your host.
+      OIDC_AUTH_EXTERNAL_URL: ${OIDC_AUTH_EXTERNAL_URL:-https://kumbara.example.com}
+      # Scopes requested at login. `offline` is REQUIRED for a refresh token (Cosmos advertises `offline`,
+      # not `offline_access`). Without a refresh token the lib force-logs-you-out every 15 min. The app's
+      # code default already includes it (features/auth/auth.ts); this line only exists to override per-IdP.
+      OIDC_SCOPES: ${OIDC_SCOPES:-openid email profile offline}
+      # Session lifetimes (belt-and-suspenders around the refresh token). REFRESH_INTERVAL = how often the
+      # lib silently refreshes the session against the IdP; EXPIRES = the absolute session ceiling. Long
+      # values mean a refresh hiccup costs a weekly re-login, not a 15-minute one. Seconds. 604800 = 7d,
+      # 2592000 = 30d.
+      OIDC_AUTH_REFRESH_INTERVAL: ${OIDC_AUTH_REFRESH_INTERVAL:-604800}
+      OIDC_AUTH_EXPIRES: ${OIDC_AUTH_EXPIRES:-2592000}
+      # ---- SECRETS: set the real values in the Cosmos UI (or a Pi-local .env). Leave blank in git. ----
+      # The once-shown Cosmos client secret (confidential client).
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      # >=32 random chars that sign the session JWT. Generate: openssl rand -hex 32
+      OIDC_AUTH_SECRET: ${OIDC_AUTH_SECRET:-}
+      # Service token for agent / prod-ops API calls (Authorization: Bearer <this>). Browsers use the cookie;
+      # the agent has none. Generate: openssl rand -hex 32. Left blank -> the bearer path is off (browser only).
+      AGENT_API_TOKEN: ${AGENT_API_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      electric:
+        condition: service_started
+    # ⚠️ Why every internal reference in this file uses CONTAINER NAMES (kumbara-*), not compose service
+    # aliases (api / postgres / electric) — this is THE fix for the recurring "host not found in upstream api"
+    # / 502-after-Cosmos-Update. Cosmos's per-container "Update" recreates ONE container at a time and does NOT
+    # re-apply the compose network aliases, so afterwards `docker inspect` shows Aliases:null and the service
+    # name (`api`) returns NXDOMAIN. An EXPLICIT `networks.aliases` block does NOT survive it either (verified
+    # live: freshly-Updated containers come back with Aliases:null regardless), which is why there is no such
+    # block here anymore. The container_name IS registered in Docker's DNSNames from `--name`, which every
+    # recreate re-establishes, so `kumbara-api` always resolves. nginx's lazy resolve + valid=1s still handles
+    # the ~3s window while a recreated container re-registers and picks up its new ip. See app/nginx.conf.
+    #
+    # Gates the frontend's startup (below) so nginx only boots once the api is up and answering.
+    # /api/health is the one unauthenticated route (returns {"ok":true}); node has no curl/wget
+    # in the slim image, so probe with node's own http. start_period covers migrations running at boot.
+    healthcheck:
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "require('http').get('http://127.0.0.1:4000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+    labels:
+      - "cosmos-stack=kumbara"
+
+  frontend:
+    # Same dual pull-or-build as api. Keep TAG in sync with the api so both roll forward/back together.
+    image: ghcr.io/armanckeser/kumbara-frontend:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kumbara-frontend
+    restart: unless-stopped
+    ports:
+      - "5182:80"
+    # NO nginx.conf bind mount. It used to be mounted over the image's baked copy so config fixes could be
+    # applied by editing the file on the Pi + reloading, without waiting for a new frontend image. That is
+    # incompatible with an oci:// source: `publish` ships only the mount DECLARATION, and the relative
+    # ./nginx.conf then resolves against the consumer's artifact cache dir where no such file exists — Docker
+    # would helpfully create an empty DIRECTORY at that path and nginx would fail to start.
+    #
+    # Safe to drop: Dockerfile already does `COPY nginx.conf /etc/nginx/conf.d/default.conf`, so the image
+    # ships the identical file (verified: the Pi's ~/kumbara/nginx.conf md5-matched the repo copy at the time
+    # of this change, i.e. nothing had been hot-fixed on the box and left undeployed).
+    #
+    # To hot-fix nginx without cutting a release, layer a local override instead of re-adding a mount here —
+    # multi-`-f` merge still works against a remote source, and an ABSOLUTE path sidesteps the cache dir:
+    #   printf 'services:\n  frontend:\n    volumes:\n      - /home/youruser/kumbara/nginx.conf:/etc/nginx/conf.d/default.conf:ro\n' > ~/kumbara/nginx-override.yml
+    #   docker compose -f oci://ghcr.io/armanckeser/kumbara-stack:vX.Y.Z -f ~/kumbara/nginx-override.yml up -d -y
+    # Fold the fix back into the repo and cut a release, then drop the override.
+    # Wait for the api to be HEALTHY, not merely started, so on a FULL `up -d` nginx only boots once
+    # kumbara-api is answering /api/health and its first upstream resolve succeeds. (This gate only applies
+    # to a full compose bringup; a Cosmos per-container Update ignores depends_on — that case is covered by
+    # nginx pointing at the durable container_name plus valid=1s, see app/nginx.conf.)
+    depends_on:
+      api:
+        condition: service_healthy
+    labels:
+      - "cosmos-stack=kumbara"
+      - "cosmos-stack-main=kumbara-frontend"
+      - "cosmos-icon=https://api.iconify.design/lucide:piggy-bank.svg?color=%23f4a259"
+
+volumes:
+  kumbara-pgdata:
+  kumbara-electricdata:

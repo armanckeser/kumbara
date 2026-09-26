@@ -1,0 +1,54 @@
+# Normalization rules (Appendix B.2) — the ordered cleanup recipe.
+#
+# Turns a noisy bank/processor string into a stable merchant_key. Applied in a FIXED order by the pure
+# pipeline (pipeline.ts): NFKD-fold + uppercase + collapse spaces, THEN in this file's order:
+#   1. strip the first matching `prefixes` entry (matched longest-first, so "PAYPAL *" wins over "PP*")
+#   2. strip each `suffix_patterns` regex from the END of the string
+#   3. drop each `token_strip` word wherever it appears
+#   4. apply each `replace` (regex source -> literal)
+# then trim/collapse -> lowercase key.
+#
+# These are GLOBAL, not per-institution: the garbage is per payment-RAIL (Apple Pay / Square / Toast /
+# PayPal / Google Pay), which is the same across banks. Edit this file as a diff to tune the rules; the
+# unresolved rate in the Merchants view tells you when a new rule is needed.
+
+version: 1
+
+# Processor prefixes, stripped longest-first. A trailing space/star is significant (it's part of the
+# literal prefix the processor emits, e.g. "SQ *BLUE BOTTLE").
+prefixes:
+  - "APLPAY " # Apple Pay
+  - "PAYPAL *"
+  - "GOOGLE *"
+  - "GGLPAY " # Google Pay (as seen on the live feed, §0.3)
+  - "PYPL *"
+  - "TST* " # Toast
+  - "SQ *" # Square
+  - "IC* " # Instacart
+  - "CKE*"
+  - "WPY*" # WePay
+  - "SP *" # Shopify / Stripe "SP"
+  - "PP*"
+
+# Regexes stripped from the END of the string (the geo/phone/id noise banks append). Ordered: phone and
+# store-number before the trailing state, so "855-435-5893 CA" is fully removed.
+suffix_patterns:
+  - '\s*\d{3}[-\s]?\d{3}[-\s]?\d{4}.*$' # phone number (+ anything after)
+  - '\s*#\d+.*$' # store number "#1234"
+  - '\s*\d{6,}\s*[A-Z]{2}$' # long numeric id followed by a state ("57442318 ATLANTA GA" tail is city+state; id handled by token pass)
+  - '\s+[A-Z]{2}$' # trailing two-letter state code
+
+# Whole words dropped wherever they appear (not just at the ends).
+token_strip:
+  - "PURCHASE"
+  - "DEBIT"
+  - "POS"
+  - "RECURRING"
+
+# Literal-ish cleanups applied last. `from` is a regex source; `to` the replacement (may be empty).
+replace:
+  # Long numeric ids left mid-string (e.g. "DELTA AIR 0062213344 ATLANTA GA" once state is stripped)
+  # collapse to a space so "DELTA AIR ATLANTA" remains and the KB alias resolves it.
+  - { from: '\s+\d{6,}\s+', to: " " }
+  # Common city tails that survive after the state strip, for the fixtures' sample merchants.
+  - { from: '\s+(BOSTON|CAMBRIDGE|OAKLAND|ATLANTA)$', to: "" }
