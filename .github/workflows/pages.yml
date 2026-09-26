@@ -1,0 +1,57 @@
+name: Deploy demo to Pages
+
+# The public demo: the real app built with VITE_DEMO=1, which swaps the synced
+# collections and API for in-memory fake data (see app/DEMO.md). No backend, no
+# bank connection, nothing to keep running.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - name: Build the demo
+        run: npx vite build
+        env:
+          VITE_DEMO: '1'
+          VITE_API_URL: ''
+          VITE_BASE: /${{ github.event.repository.name }}/
+      # Pages has no SPA fallback; serving index.html as the 404 page gives deep
+      # links like /budget a route to land on.
+      - run: cp dist/index.html dist/404.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

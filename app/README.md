@@ -3,7 +3,7 @@
 > "What if Apple designed a budgeting app that just works." Self-hosted, single-household,
 > privacy-first. Compatible with SimpleFIN. No LLM baked into the app.
 
-See [`../kumbaradesign.md`](../kumbaradesign.md) for the full design doc and decision log, and
+See
 [`VISION.md`](./VISION.md) for the product vision.
 
 ## Stack

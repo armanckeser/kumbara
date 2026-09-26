@@ -1,53 +1,37 @@
-<p align="center">
-  <img src="img/banner.png" alt="Kumbara - Budgeting that just works" width="640" />
-</p>
+# Kumbara
 
----
-
-Kumbara is a self-hosted, single-household budgeting app that pulls in your bank data, categorizes it, and answers one question: am I spending on what I meant to?
-
-- 💰 **50/30/20 budget** — Needs, Wants, and Savings, learned from how you actually spend.
-- 🏦 **SimpleFIN sync** — Connect your accounts; transactions flow in automatically.
-- 🧠 **Auto-categorization** — It learns from your corrections instead of asking every time.
-- 🔁 **Transfer detection** — Money moving between your own accounts stays out of the budget.
-- 📈 **Holdings** — Track investment accounts alongside cash.
-- 🔒 **Private by design** — Self-hosted, single-household, no LLM baked into the app.
-
----
-
-## How It Works
-
-**Connect your accounts.** Kumbara speaks SimpleFIN, so transactions sync in without manual entry.
-
-**Let it categorize.** Merchants are normalized and categorized automatically. When you correct one, it learns for next time instead of asking again.
-
-**Budget in buckets.** A 50/30/20 view splits spending into Needs, Wants, and Savings, with pace tracking and a savings rate. Transfers between your own accounts are netted out so they never pollute the numbers.
-
-**Answer the real question.** Open the app and see whether you are on budget and whether anything slipped through that you did not mean to spend.
-
----
-
-## Screenshots
+**Your bank feed, sorted for you.** A self-hosted budgeting app that pulls in every
+account, files each charge where it belongs, and only asks you about the ones it can't
+place — once per merchant, never per transaction.
 
 <p align="center">
-
+  <img src="img/inbox.gif" alt="Three taps in the inbox file twelve transactions: one answer covers every charge from a merchant, one confirms a transfer between your own accounts, then the budget" width="360" />
 </p>
+
+<p align="center"><b><a href="https://armanckeser.github.io/kumbara/">Click around the live demo →</a></b> &nbsp;<sub>fake data, runs entirely in your browser</sub></p>
+
+Think YNAB or Copilot, but on your own server, with no subscription and no one else
+holding your transactions.
+
+- **One answer settles a merchant.** Tell it "The Daily Grind is Dining Out" and all four
+  charges move, along with every future one.
+- **Transfers stay out of your spending.** Money moving between your own accounts is
+  paired up and confirmed, not counted twice.
+- **A budget that shows the one number that matters.** Needs, Wants and Savings with
+  what's left per day, so you know whether you're on track before the month is over.
+- **Everything in one place.** Checking, cards, savings, brokerage and stock plans, synced
+  through [SimpleFIN](https://www.simplefin.org/) (about $15 a year, paid to them).
+- **Yours.** Self-hosted, single household, no AI service reading your statements.
+
 <p align="center">
-  <img src="img/transactions.png" alt="Transactions inbox" width="300" />
-  <img src="img/accounts.png" alt="Accounts list" width="300" />
+  <img src="img/budget.png" alt="The budget page: expected and detected income, then Needs, Wants and Savings with what is left in each" width="760" />
 </p>
-
----
-
-## Why This Exists
-
-I wanted a budgeting app that felt like Apple built it: mobile-first, mostly automatic, and quiet until something actually needs my attention. Existing tools either ask me to categorize everything by hand or bury the one number I care about under dashboards. Kumbara syncs my accounts, learns from my corrections, and tells me if I spent on things I did not mean to, without turning me into an accountant. It is self-hosted and single-household, so my financial data stays mine.
 
 ---
 
 ## Development
 
-The application lives in [`app/`](./app) (an npm workspace). See [`app/README.md`](./app/README.md) for the full stack, architecture notes, and conventions, and [`kumbaradesign.md`](./kumbaradesign.md) for the design doc and decision log.
+The application lives in [`app/`](./app) (an npm workspace). See [`app/README.md`](./app/README.md) for the full stack, architecture notes, and conventions.
 
 ### Prerequisites
 
@@ -86,7 +70,7 @@ kumbara/
 │   ├── server/             # Hono + Effect API, @effect/sql-pg, migrations
 │   ├── domain/             # Effect Schema domain models, shared by client + server
 │   └── docker-compose.yml  # Postgres (source of truth) + Electric (sync)
-├── kumbaradesign.md        # design doc + decision log
+│
 └── img/                    # banner + screenshots
 ```
 
