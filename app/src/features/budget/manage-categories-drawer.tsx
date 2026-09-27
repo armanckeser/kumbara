@@ -214,8 +214,7 @@ export function ManageCategoriesDrawer({
             <SheetHeader>
               <SheetTitle>Manage categories &amp; budget</SheetTitle>
               <SheetDescription>
-                Set income and targets for {monthLabel(month)}, and author your categories. Archive keeps
-                history; delete removes an unused category for good.
+                Income, targets and categories for {monthLabel(month)}.
               </SheetDescription>
             </SheetHeader>
 
@@ -584,7 +583,7 @@ function IncomeAndActions({
           />
         </div>
         <div className="mt-1 text-xs text-text-muted">
-          Percent targets resolve against this. Edit the percents below.
+          Percent targets are a share of this.
         </div>
       </div>
       {/* Seed actions are INLINE buttons, deliberately not a menu: a floating menu portalled over this
@@ -843,7 +842,7 @@ function AddCategoryForm() {
             onChange={(event) => setManual(event.target.checked)}
             className="size-3.5 accent-emerald-400"
           />
-          Manual actual (401k / IRA — type the monthly figure; no transactions to sum)
+          Enter the monthly amount by hand (401k, IRA)
         </label>
       )}
     </div>
@@ -1338,7 +1337,7 @@ function CategoryDetailPage({
             </Button>
           </div>
           <p className="text-xs text-text-muted">
-            Archive keeps history; delete removes an unused category for good.
+            Archive keeps history. Delete only works on unused categories.
           </p>
           {error !== null && (
             <p className="rounded-md bg-rose-500/10 px-2 py-1 text-xs text-rose-400">{error}</p>
@@ -1418,7 +1417,7 @@ function NewCategoryPage({ onBack }: { onBack: () => void }) {
               onChange={(event) => setManual(event.target.checked)}
               className="size-4 accent-emerald-400"
             />
-            Manual actual (401k / IRA — type the monthly figure; no transactions to sum)
+            Enter the monthly amount by hand (401k, IRA)
           </label>
         )}
       </div>

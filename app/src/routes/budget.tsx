@@ -650,7 +650,7 @@ function BucketBudgetedReveal({
         render={
           <button
             type="button"
-            aria-label={`Budgeted ${usdCents(budgeted)} — tap for the target and the fixed/variable split`}
+            aria-label={`Budgeted ${usdCents(budgeted)}. Show breakdown`}
             className="-my-1 inline-flex min-h-6 items-center rounded text-xs tabular-nums text-text-muted underline decoration-dotted underline-offset-2 hover:text-text-secondary"
           >
             {usd(budgeted)} budgeted
@@ -1020,7 +1020,7 @@ function SavingsCard({
         )}
         {saved < 0 && (
           <p className="mt-2 text-[11px] text-amber-400">
-            Spending outran take-home this month — you drew down savings rather than adding to them.
+            You spent more than you took home this month.
           </p>
         )}
       </div>

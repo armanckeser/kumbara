@@ -222,7 +222,7 @@ function MerchantsPage() {
 
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-text-muted">
-          No merchants yet. Sync the bundled knowledge base, then ingest transactions to populate this list.
+          No merchants yet. They appear as transactions sync.
         </div>
       ) : (
         <FilterProvider<MerchantItem, string>

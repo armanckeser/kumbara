@@ -163,7 +163,7 @@ function InvestmentsPage() {
       <div>
         <h2 className="mb-6 font-display text-2xl tracking-tight sm:text-3xl">Investments</h2>
         <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-text-muted">
-          No investment accounts yet. Enable one on the Accounts page to see your portfolio here.
+          No investment accounts yet. Enable one on the Accounts page.
         </div>
         <StockGrantsSection accounts={[]} />
       </div>
@@ -212,8 +212,7 @@ function InvestmentsPage() {
           </div>
         ) : (
           <p className="mt-3 text-xs text-text-muted">
-            Value history starts accruing now — one snapshot per account per day (each sync and price
-            refresh records one). The trend appears after the second day.
+            The trend appears after two days of history.
           </p>
         )}
       </div>
@@ -236,10 +235,7 @@ function InvestmentsPage() {
         <div className="mt-4 rounded-lg border border-border bg-surface-raised/40 p-4">
           <div className="mb-3">
             <h3 className="text-sm font-medium text-text-primary">Top positions</h3>
-            <p className="text-xs text-text-muted">
-              Share of total market value per exposure, across all investment accounts. Tap one to see
-              its cost basis and where it is held.
-            </p>
+            <p className="text-xs text-text-muted">Share of market value. Tap one for details.</p>
           </div>
           <AllocationChart
             slices={concentration.weights.map((weight) => ({
@@ -257,9 +253,7 @@ function InvestmentsPage() {
       <div className="mt-4 rounded-lg border border-border bg-surface-raised/40 p-4">
         <div className="mb-3">
           <h3 className="text-sm font-medium text-text-primary">Allocation by account</h3>
-          <p className="text-xs text-text-muted">
-            Share of total market value across investment accounts. Tap an account to see its positions.
-          </p>
+          <p className="text-xs text-text-muted">Tap an account to see its positions.</p>
         </div>
         <AllocationChart
           slices={totals.slices}

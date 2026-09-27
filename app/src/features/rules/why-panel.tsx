@@ -74,22 +74,22 @@ export function WhyPanel({ transactionId, names }: { transactionId: string; name
           : category.by === "auto"
             ? `${names.category(category.category_id)} — auto-categorized from ${PROVIDER_LABEL[category.provider ?? ""] ?? "its merchant"}.`
             : category.rule === null && paycheck !== null && paycheck.status !== "detached"
-              ? `${names.category(category.category_id)} — income, because its paycheck rules recognized the payer.`
+              ? `${names.category(category.category_id)} — matched a paycheck.`
               : `${names.category(category.category_id)} — from a rule.`;
 
   const transfer = budget.transfer;
   const budgetLine =
     budget.exclusion === "included"
       ? transfer !== null && transfer.detected_by === "auto" && transfer.status !== "paired" && transfer.reason === null
-        ? "Counts in the budget. Kumbara wonders whether it's a transfer — answer it in the inbox."
+        ? "Counts in the budget. Might be a transfer; check the inbox."
         : "Counts in the budget."
       : transfer === null
         ? "Kept out of the budget."
         : transfer.status === "paired"
-          ? `Kept out of the budget: a transfer ${transfer.detected_by === "auto" ? "matched automatically" : "you confirmed"} with another of your accounts.`
+          ? `Kept out of the budget: transfer between your accounts (${transfer.detected_by === "auto" ? "auto-matched" : "confirmed"}).`
           : transfer.rule !== null
             ? "Kept out of the budget by a standing transfer rule:"
-            : "Kept out of the budget: you marked it as money moving to an account Kumbara doesn't see.";
+            : "Kept out of the budget: transfer to an untracked account.";
 
   return (
     <div className="rounded-md border border-border p-3 text-sm">
@@ -99,7 +99,7 @@ export function WhyPanel({ transactionId, names }: { transactionId: string; name
       <p className="mt-2 text-text-secondary">{budgetLine}</p>
       {transfer?.rule !== null && transfer?.rule !== undefined && <RuleMention rule={transfer.rule} names={names} />}
       {paycheck !== null && paycheck.status !== "detached" && (
-        <p className="mt-2 text-text-secondary">Broken down as a paycheck by its income source's rules.</p>
+        <p className="mt-2 text-text-secondary">Split by its paycheck rules.</p>
       )}
     </div>
   );

@@ -70,16 +70,12 @@ export function ConcentrationCard({ concentration }: { concentration: PortfolioC
     concentration.topLabel !== null && concentration.topWeight !== null
       ? `Largest: ${concentration.topLabel} at ${(concentration.topWeight * 100).toFixed(0)}%`
       : undefined;
-  const effective =
-    concentration.effectivePositions === null
-      ? ""
-      : ` · ≈${concentration.effectivePositions.toFixed(1)} effective positions`;
   return (
     <HealthCard
       label="Diversification"
       headline={CONCENTRATION_WORD[concentration.level]}
       headlineClassName={CONCENTRATION_TONE[concentration.level]}
-      detail={top === undefined ? undefined : `${top}${effective}`}
+      detail={top}
     />
   );
 }
@@ -118,7 +114,7 @@ export function FreshnessCard({ freshness }: { freshness: PriceFreshness }) {
         label="Price freshness"
         headline="All synced"
         headlineClassName="text-emerald-400"
-        detail="Every position is priced by its provider feed."
+        detail="Prices come from your brokerage feeds."
       />
     );
   }

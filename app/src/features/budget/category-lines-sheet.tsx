@@ -70,8 +70,7 @@ export function CategoryLinesSheet({
               {categoryName} · {USD.format(parseFloat(boardActual))}
             </SheetTitle>
             <SheetDescription className="text-xs text-text-muted">
-              Everything that adds up to this month's figure — refunds netted in, paycheck deductions included,
-              transfers left out.
+              Refunds netted in, paycheck deductions included, transfers left out.
             </SheetDescription>
           </SheetHeader>
           {error !== null && <p className="text-sm text-danger">{error}</p>}

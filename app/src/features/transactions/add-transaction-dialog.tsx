@@ -46,7 +46,7 @@ export function AddTransactionDialog({
         <DialogHeader>
           <DialogTitle>Add a transaction</DialogTitle>
           <DialogDescription>
-            Record something the feed can’t see — a 401k contribution, cash spend, anything by hand.
+            For anything the feed misses, like cash or a 401k contribution.
           </DialogDescription>
         </DialogHeader>
         <AddTransactionForm

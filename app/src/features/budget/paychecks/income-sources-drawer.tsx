@@ -123,15 +123,13 @@ export function IncomeSourcesDrawer({
               </Button>
             </div>
             <SheetDescription className="text-xs text-text-muted">
-              Set up each paycheck once: your annual gross and how often you're paid, then the deductions
-              (401k, transit, taxes). We derive taxes as the leftover and roll each deduction into its own
-              budget category.
+              Gross pay, pay frequency and deductions. Taxes are whatever is left over.
             </SheetDescription>
           </SheetHeader>
 
           {sources.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-text-muted">
-              No paychecks yet. Add one to set up 401k, transit, and taxes.
+              No paychecks yet
             </div>
           ) : (
             <ul className="flex flex-col gap-4">
@@ -305,8 +303,8 @@ function IncomeSourceCard({
         </select>
         <span className="text-[11px] text-text-muted">
           {variability === "fixed"
-            ? "A different amount than usual gets flagged to review."
-            : "Swings are expected (hourly, commission, tips) — only big jumps get flagged."}
+            ? "Any change in amount goes to review."
+            : "Only big jumps go to review."}
         </span>
       </label>
 
@@ -315,13 +313,12 @@ function IncomeSourceCard({
           <>
             <span className="text-text-secondary">Applies automatically</span> to deposits from {payerName}
             {" · "}
-            {thisMonthCount === 1 ? "1 paycheck" : `${thisMonthCount} paychecks`} this month. Rule changes update
-            this month's paychecks on their own.
+            {thisMonthCount === 1 ? "1 paycheck" : `${thisMonthCount} paychecks`} this month
           </>
         ) : (
           <>
-            <span className="text-text-secondary">Not linked to a payer yet.</span> Open one of its deposits and
-            choose “Set up as paycheck” — every later deposit from that payer is then handled automatically.
+            <span className="text-text-secondary">No payer yet.</span> Open a deposit and choose “Set up as
+            paycheck”.
           </>
         )}
       </div>

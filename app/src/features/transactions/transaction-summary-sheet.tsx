@@ -74,7 +74,7 @@ export function TransactionSummarySheet({
         <div className="flex flex-col gap-5 px-4 pb-6">
           {summary.count === 0 ? (
             <p className="text-sm text-text-muted">
-              Nothing to summarize — adjust the filters or search to select some transactions.
+              No transactions match these filters.
             </p>
           ) : (
             <>

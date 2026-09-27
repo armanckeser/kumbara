@@ -34,8 +34,7 @@ export function NotificationSettings() {
       <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
         <AlertCircle className="mt-0.5 size-4 shrink-0" />
         <p>
-          Notification permission was denied. To enable push notifications, update your browser settings
-          for this site.
+          Notifications are blocked. Allow them in your browser’s settings for this site.
         </p>
       </div>
     );

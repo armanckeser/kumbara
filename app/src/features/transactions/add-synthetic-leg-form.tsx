@@ -117,10 +117,9 @@ export function AddSyntheticLegForm({
   return (
     <div className="flex h-full flex-col gap-5 p-6">
       <div>
-        <p className="text-xl font-semibold text-text-primary">Add a synthetic (cosmetic) entry</p>
+        <p className="text-xl font-semibold text-text-primary">Add a display-only line</p>
         <p className="mt-1 text-xs text-text-muted">
-          A breakdown line for this group's history — it counts toward NO total (not the budget, not the
-          transactions list). For money that should count, add an actual transaction instead.
+          Shows in this group’s history but counts toward no total.
         </p>
       </div>
 

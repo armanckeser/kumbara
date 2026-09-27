@@ -45,7 +45,7 @@ function RulesPage() {
   const remove = (rule: StandingRule) => {
     void apiDelete<{ restored: number }>(`rules/${routeKindOf(rule)}`, rule.id)
       .then((body) => {
-        setNote(body.restored > 0 ? `Removed — ${body.restored} transactions put back the way they were.` : "Removed.");
+        setNote(body.restored > 0 ? `Removed. ${body.restored} transactions restored.` : "Removed.");
         load();
       })
       .catch((cause: unknown) => setError(String(cause)));
@@ -56,9 +56,7 @@ function RulesPage() {
       <header>
         <h1 className="text-2xl font-semibold text-text-primary">Rules</h1>
         <p className="mt-1 text-sm text-text-muted">
-          Everything Kumbara applies on its own. <span className="text-text-secondary">Pause</span> stops a rule
-          for new transactions; <span className="text-text-secondary">Delete</span> removes it and undoes what it
-          did. Paycheck rules live in{" "}
+          Pause stops a rule for new transactions. Delete also undoes it. Paycheck rules are in{" "}
           <Link to="/budget" className="underline">
             Budget → Paychecks
           </Link>
@@ -101,7 +99,7 @@ function RulesPage() {
           );
         })}
       {rules !== null && rules.length === 0 && (
-        <p className="text-sm text-text-muted">No rules yet. They appear here as you answer the inbox.</p>
+        <p className="text-sm text-text-muted">No rules yet. Answering the inbox creates them.</p>
       )}
     </div>
   );

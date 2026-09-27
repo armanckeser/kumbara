@@ -91,16 +91,14 @@ function GeneratePaycheckBody({
       <SheetHeader className="p-0">
         <SheetTitle className="text-xl">Set up as paycheck</SheetTitle>
         <SheetDescription className="text-xs text-text-muted">
-          We'll break this deposit down into gross, deductions (401k, transit, …) and taxes from the paycheck's
-          rules. You only do this once: later deposits from the same payer are handled automatically after each
-          sync, and editing the rules updates this month's paychecks on its own.
+          Splits this deposit into gross, deductions and taxes. Later deposits from this payer are split
+          automatically.
         </SheetDescription>
       </SheetHeader>
 
       {sources.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-text-muted">
-          No paychecks set up yet. Open Budget → Paychecks to add one (annual gross, cadence, deductions),
-          then come back here.
+          No paychecks yet. Add one in Budget → Paychecks.
         </div>
       ) : (
         <ul className="flex flex-col gap-2">

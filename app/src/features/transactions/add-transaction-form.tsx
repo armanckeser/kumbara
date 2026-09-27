@@ -174,8 +174,7 @@ export function AddTransactionForm({
 
       {providerWarning && (
         <p className="rounded-md bg-amber-400/10 px-3 py-2 text-xs text-amber-400">
-          This is a synced account. A hand-entered row here won’t merge with a matching row the bank
-          later sends — you may see it twice.
+          Synced account. If the bank sends this too, it will show up twice.
         </p>
       )}
 

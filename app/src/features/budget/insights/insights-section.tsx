@@ -6,6 +6,7 @@
 
 import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { InfoTip } from "@/components/info-tip";
 import { apiGet } from "../../../lib/api";
 import { cn } from "@/lib/utils";
 import { type BudgetHistoryPoint, type BudgetSummary } from "../summary";
@@ -60,9 +61,9 @@ function ChartCard({
   return (
     <div className="rounded-lg border border-border bg-surface-raised/40 p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-0.5">
           <h4 className="text-sm font-medium text-text-primary">{title}</h4>
-          {hint !== undefined && <p className="text-xs text-text-muted">{hint}</p>}
+          {hint !== undefined && <InfoTip label={`About ${title}`}>{hint}</InfoTip>}
         </div>
         {action !== undefined && <div className="shrink-0">{action}</div>}
       </div>
@@ -164,7 +165,7 @@ export function InsightsSection({
           {/* Target chart never needs history — render it straight from the loaded summary. */}
           <ChartCard
             title="Spending vs plan"
-            hint="This month's spend per bucket against its target. The dashed line is the plan; the gap above it is how far over."
+            hint="This month's spend per bucket. The dashed line is the target."
           >
             <BucketTargetChart summary={summary} />
           </ChartCard>
@@ -179,7 +180,7 @@ export function InsightsSection({
             </div>
           ) : historyIsEmpty(history) ? (
             <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-text-muted">
-              No spending history yet. Trends appear as months accumulate.
+              No history yet. Trends fill in month by month.
             </div>
           ) : (
             <>
@@ -187,8 +188,8 @@ export function InsightsSection({
                 title="Spending trend"
                 hint={
                   trendGrain === "bucket"
-                    ? "Each bucket's spend over the last 12 months — the shape, not just this month."
-                    : "Each top category's spend over the last 12 months (the rest folded into Other)."
+                    ? "Spend per bucket, last 12 months."
+                    : "Top categories, last 12 months. The rest is in Other."
                 }
                 action={<TrendGrainToggle grain={trendGrain} onChange={setTrendGrain} />}
               >
@@ -200,7 +201,7 @@ export function InsightsSection({
               </ChartCard>
               <ChartCard
                 title="Savings rate"
-                hint="Share of income saved each month, against the 20% goal."
+                hint="Share of income saved each month. The goal is 20%."
               >
                 <SavingsRateChart history={history} />
               </ChartCard>

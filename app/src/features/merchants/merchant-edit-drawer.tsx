@@ -125,8 +125,7 @@ export function MerchantEditDrawer({
           // A KB row is the shipped norm — read-only here so resolving never downgrades it. Editing the KB
           // is the offline seed-file step, not this UI.
           <div className="px-4 text-sm text-text-muted">
-            This merchant is part of the bundled knowledge base and can’t be resolved here. To change it,
-            edit the KB seed file and re-sync.
+            Built-in merchant. Edit it in the knowledge base seed file.
           </div>
         ) : (
           <div className="flex flex-col gap-4 px-4">
@@ -176,7 +175,7 @@ export function MerchantEditDrawer({
                 ))}
               </select>
               <span className="text-xs text-text-muted">
-                Payment / transfer kinds route to link detection instead of the budget.
+                Payments and transfers stay out of the budget.
               </span>
             </label>
 

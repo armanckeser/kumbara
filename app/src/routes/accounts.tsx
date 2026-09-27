@@ -171,8 +171,7 @@ function AccountsPage() {
 
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-text-muted">
-          No accounts yet. Press <span className="font-medium">Manage accounts</span> to connect a
-          provider or add one by hand.
+          No accounts yet. Add one from <span className="font-medium">Manage accounts</span>.
         </div>
       ) : (
         <FilterProvider<AccountItem, string>
@@ -293,7 +292,7 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
         setup_token: token.trim(),
         ...(startDate !== undefined ? { start_date: startDate } : {}),
       });
-      setMessage(`Discovered ${summary.discovered} account(s). Select the ones you want and Enable them.`);
+      setMessage(`Found ${summary.discovered} account(s). Enable the ones you want.`);
       setToken("");
     } catch (cause) {
       setError(String(cause));
@@ -308,7 +307,7 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
         <DialogHeader>
           <DialogTitle>Connect a provider</DialogTitle>
           <DialogDescription>
-            Paste your SimpleFIN setup token to discover your accounts. Nothing is enabled automatically.
+            Paste your SimpleFIN setup token.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
@@ -327,7 +326,7 @@ function ConnectDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
               onChange={(event) => setBackfillDate(event.target.value)}
             />
             <span className="text-xs text-text-muted">
-              Transactions on or after this date load on the first sync. Defaults to one year back.
+              Defaults to one year ago.
             </span>
           </label>
           <Button onClick={connect} disabled={busy || token.trim().length === 0}>
@@ -389,7 +388,7 @@ function AddAccountDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a manual account</DialogTitle>
-          <DialogDescription>For accounts you track by hand (cash, an old card).</DialogDescription>
+          <DialogDescription>Cash, an old card, anything without a feed.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <Input

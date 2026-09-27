@@ -57,9 +57,6 @@ export function StockGrantsSection({ accounts }: { accounts: ReadonlyArray<Pick<
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <h3 className="text-sm font-medium text-text-primary">Stock grants</h3>
-          <p className="text-xs text-text-muted">
-            RSUs by stock — what's vested, what's still coming, and its value at today's price.
-          </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
           <Plus className="size-3.5" /> Add grant
@@ -68,7 +65,7 @@ export function StockGrantsSection({ accounts }: { accounts: ReadonlyArray<Pick<
 
       {positions.length === 0 ? (
         <p className="text-xs text-text-muted">
-          No grants yet. Add one from its grant statement: the stock, the date, how many shares, how they vest.
+          No grants yet
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

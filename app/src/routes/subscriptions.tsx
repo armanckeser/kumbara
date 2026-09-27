@@ -219,7 +219,7 @@ function SubscriptionsPage() {
         <div className="flex items-center justify-between gap-3 rounded-lg border border-accent/40 bg-accent/5 p-3 text-sm">
           <span className="text-text-secondary">
             {selectedIds.length === 0
-              ? "Pick two subscriptions that are the same obligation (e.g. rent before and after a price change)."
+              ? "Pick two that are the same bill, like rent before and after a raise."
               : `${selectedIds.length} of 2 selected.`}
           </span>
           <Button
@@ -236,7 +236,7 @@ function SubscriptionsPage() {
 
       {empty && (
         <p className="rounded-lg border border-border bg-surface-raised p-4 text-sm text-text-muted">
-          Nothing recurring detected yet. Detection runs after every sync — or press Rescan.
+          Nothing recurring found yet. Checked after every sync.
         </p>
       )}
 

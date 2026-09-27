@@ -233,8 +233,7 @@ export function AccountEditDrawer({
                 className="font-mono"
               />
               <span className="text-xs text-text-muted">
-                Overrides the synced balance for totals and net worth. Leave empty to use{" "}
-                {providerLabel(provider)}’s figure
+                Leave empty to use {providerLabel(provider)}’s balance
                 {effective !== null ? (
                   <>
                     {" "}

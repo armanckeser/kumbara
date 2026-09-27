@@ -544,9 +544,8 @@ function PaycheckPanel({
       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">Paycheck</p>
       {/* Provenance: where this breakdown came from, so an automatic paycheck is never a mystery. */}
       <p className="mb-2 text-xs text-text-muted">
-        From {source?.name ?? "an income source"}'s rules, applied automatically
-        {paycheck.periodStatus === "accepted" && " · you accepted this period's amount"}. Edit the rules in
-        Budget → Paychecks and this month's paychecks update on their own.
+        From {source?.name ?? "an income source"}’s rules
+        {paycheck.periodStatus === "accepted" && " · amount accepted"}
       </p>
       <dl className="flex flex-col gap-1 text-sm">
         <div className="flex justify-between">
@@ -559,8 +558,8 @@ function PaycheckPanel({
         </div>
         {paycheck.status === "diverged" && (
           <p className="mt-1 text-xs text-amber-400">
-            Differs from expected by {USD_CENTS.format(paycheck.actualNet - paycheck.expectedNet)} — a bonus,
-            a tax event, or a benefit change. Fix a rule or accept this period.
+            Off by {USD_CENTS.format(paycheck.actualNet - paycheck.expectedNet)}. Fix a rule or accept this
+            period.
           </p>
         )}
       </dl>

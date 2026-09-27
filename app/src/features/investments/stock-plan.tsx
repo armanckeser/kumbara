@@ -229,9 +229,7 @@ export function StockPlanSetupCard({
     <div className="mb-6 rounded-lg border border-dashed border-border p-6 text-center">
       <p className="text-sm text-text-primary">Track equity grants for this account</p>
       <p className="mx-auto mt-1 max-w-md text-xs text-text-muted">
-        The provider feed only carries totals. Add your RSU grants and vest schedule once — vested vs.
-        unvested, upcoming vests, and the value of what’s still promised are derived from the feed
-        automatically after that.
+        Add a grant once to see vested, unvested and upcoming shares.
       </p>
       <Button variant="outline" size="sm" className="mt-3" onClick={() => setAddOpen(true)}>
         <Plus className="size-3.5" /> Add grant
@@ -612,8 +610,7 @@ export function AddGrantSheet({
         <SheetHeader>
           <SheetTitle>Add equity grant</SheetTitle>
           <SheetDescription>
-            From the grant statement: date, total shares, and how they vest. The schedule below is saved
-            as editable vest rows.
+            Copy these from your grant statement.
           </SheetDescription>
         </SheetHeader>
 
@@ -687,7 +684,7 @@ export function AddGrantSheet({
               inputMode="numeric"
             />
             <span className="text-xs text-text-muted">
-              For a cliff that differs from the cadence — e.g. 12 with quarterly vests.
+              Set this for a cliff, e.g. 12
             </span>
           </label>
 
@@ -720,7 +717,7 @@ export function AddGrantSheet({
                 ))}
               </div>
               <div className="mt-1.5 text-xs text-text-muted">
-                Adjust rows to match the statement — real plans round tranches unevenly.
+                Edit rows to match your statement.
               </div>
             </div>
           )}

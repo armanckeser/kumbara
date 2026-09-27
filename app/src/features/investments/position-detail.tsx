@@ -114,10 +114,6 @@ export function PositionDetailSheet({
           {detail.lines.length > 1 && (
             <div className="mt-3">
               <h4 className="text-[10px] uppercase tracking-wide text-text-muted/70">Held in</h4>
-              <p className="mt-1 text-xs text-text-muted">
-                The same holding bought at different prices. Each account's own basis is what decides
-                which shares to sell.
-              </p>
               <ul className="mt-2 space-y-1">
                 {detail.lines.map((line) => (
                   <li key={line.accountId}>
@@ -158,7 +154,7 @@ export function PositionDetailSheet({
           {detail.lines.length === 1 && (
             <p className="mt-3 text-xs text-text-muted">
               {detail.lines[0].source === "manual"
-                ? "Hand-set figure — it does not refresh on sync, so it can go stale."
+                ? "Entered by hand. Not updated on sync."
                 : "From your brokerage feed, refreshed on each sync."}
               {detail.lines[0].asOf !== null && <> Last updated {detail.lines[0].asOf.slice(0, 10)}.</>}
             </p>
@@ -166,8 +162,7 @@ export function PositionDetailSheet({
 
           {untickered && (
             <p className="mt-3 text-xs text-text-muted">
-              No public ticker — this is a plan-internal fund, so no quote provider can price it. Its
-              value comes from the account balance rather than a live quote.
+              No public ticker. Valued from the account balance.
             </p>
           )}
         </div>

@@ -77,7 +77,7 @@ export function IOSInstallCoach() {
           </div>
           <SheetTitle className="text-xl">Install Kumbara</SheetTitle>
           <SheetDescription>
-            Add to your Home Screen for the best experience — full-screen, fast, and app-like.
+            Add it to your Home Screen to use it full-screen.
           </SheetDescription>
         </SheetHeader>
 

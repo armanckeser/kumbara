@@ -207,12 +207,12 @@ export function InboxRow({
           <div className="mt-0.5 truncate text-xs text-text-muted">
             {isLinkCandidate
               ? suggestion?.kind === "refund"
-                ? "Possible refund — is this money back on a purchase?"
+                ? "Possible refund"
                 : suggestion?.kind === "reimbursement"
-                  ? "Money in with no matching purchase — categorize it to settle this."
-                  : "Possible transfer — is this moving your own money?"
+                  ? "Money in, no matching purchase"
+                  : "Possible transfer"
               : count > 1
-                ? `${count} transactions — one answer settles all of them`
+                ? `${count} transactions, one answer`
                 : item.description_raw.trim().length > 0 && item.description_raw !== item.payee
                   ? item.description_raw
                   : "New here — what is this?"}

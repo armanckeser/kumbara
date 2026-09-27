@@ -280,8 +280,8 @@ function FollowupBody({
         </SheetTitle>
         <SheetDescription className="text-xs text-text-muted">
           {isTransfer
-            ? "Pick the matching transaction on your other account, or choose an option below."
-            : "Pick the original purchase this refund nets against, or choose an option below."}
+            ? "Pick the matching transaction on your other account."
+            : "Pick the original purchase."}
         </SheetDescription>
       </SheetHeader>
 
@@ -397,7 +397,7 @@ function FollowupBody({
       <div className="min-h-0 flex-1 divide-y divide-border-subtle overflow-y-auto">
         {candidates.length === 0 ? (
           <p className="py-4 text-center text-xs text-text-muted">
-            No matching transactions found. Search or adjust filters above, or choose an option below.
+            No matches. Try searching above.
           </p>
         ) : (
           candidates.map(({ row }) => (
