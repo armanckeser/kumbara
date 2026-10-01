@@ -40,11 +40,11 @@ const PRIMARY = DESTINATIONS.filter((destination) => destination.tier === "prima
 const SECONDARY = DESTINATIONS.filter((destination) => destination.tier === "secondary");
 
 const pillItemClass = cn(
-  "group flex items-center gap-2 rounded-full px-3.5 py-2 text-sm text-text-secondary transition-colors",
+  "group flex items-center gap-2 rounded-full px-3.5 py-2 text-sm text-text-secondary transition-[color,background-color,transform] duration-150 ease-(--ease-out) active:scale-[0.97]",
   // On touch the label is hidden (icon-only), so px-3.5 py-2 alone yields a ~34px pill. min-h-11/min-w-11
   // + centering makes it a square >=44px tap target on coarse pointers only; the desktop pill keeps shape.
   "pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:justify-center",
-  "hover:bg-surface-overlay hover:text-text-primary",
+  "hover:bg-surface-overlay hover:text-text-primary active:bg-surface-overlay",
   "[&.active]:bg-surface-overlay [&.active]:text-text-primary",
 );
 
@@ -72,7 +72,7 @@ export function PillNav() {
         // areas (the bottom-left DevTools FAB and bottom-right SelectionFab live in that same band); the
         // inner pill re-enables them.
         "pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex justify-center px-4",
-        "transition-transform duration-300 ease-out",
+        "transition-transform duration-300 ease-(--ease-drawer)",
         hidden && "translate-y-[calc(100%+1.5rem)]",
       )}
     >
@@ -100,7 +100,7 @@ export function PillNav() {
             {import.meta.env.PROD && import.meta.env.VITE_DEMO !== "1" && (
               <a
                 href="/auth/logout"
-                className="mt-4 flex items-center gap-2 rounded-xl border border-border/60 px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+                className="mt-4 flex items-center gap-2 rounded-xl border border-border/60 px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary active:bg-surface-overlay"
               >
                 <LogOut className="size-4 shrink-0" strokeWidth={2} />
                 Sign out
@@ -184,7 +184,7 @@ function MoreMenu({
               onClick={() => setOpen(false)}
               className={cn(
                 "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-text-secondary transition-colors",
-                "hover:bg-surface-overlay hover:text-text-primary",
+                "hover:bg-surface-overlay hover:text-text-primary active:bg-surface-overlay",
                 "[&.active]:bg-surface-overlay [&.active]:text-text-primary",
               )}
             >
@@ -204,7 +204,7 @@ function MoreMenu({
               setOpen(false);
               onSelectNotifications();
             }}
-            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary active:bg-surface-overlay"
           >
             <Bell className="size-[18px] shrink-0" strokeWidth={2} />
             Notifications

@@ -115,7 +115,7 @@ export function InboxRow({
     return (
       <li
         onClick={onOpenDetail}
-        className="cursor-pointer rounded-lg border border-amber-500/40 bg-surface-raised p-3 transition-colors hover:border-amber-500/60"
+        className="cursor-pointer rounded-lg border border-amber-500/40 bg-surface-raised p-3 transition-colors hover:border-amber-500/60 active:bg-surface-overlay"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -192,7 +192,7 @@ export function InboxRow({
   return (
     <li
       onClick={onOpenDetail}
-      className="cursor-pointer rounded-lg border border-border bg-surface-raised p-3 transition-colors hover:border-border/80"
+      className="cursor-pointer rounded-lg border border-border bg-surface-raised p-3 transition-colors hover:border-border/80 active:bg-surface-overlay"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

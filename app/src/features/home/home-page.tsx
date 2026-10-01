@@ -64,7 +64,7 @@ export function HomePage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* Net worth — total across tracked accounts, deep-links to the full accounts registry. */}
         <SummaryCard to="/accounts" icon={Wallet} title="Net worth">
-          <Amount value={netWorth} className="font-display text-3xl tracking-tight" />
+          <Amount value={netWorth} className="font-display text-3xl tracking-tight tabular-nums" />
           <p className="mt-1 text-xs text-text-muted">
             {accountItems.length === 0
               ? "No accounts yet"

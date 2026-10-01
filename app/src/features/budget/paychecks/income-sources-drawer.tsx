@@ -240,7 +240,7 @@ function IncomeSourceCard({
           value={name}
           onChange={(event) => setName(event.target.value)}
           onBlur={saveSource}
-          className="flex-1 border-b border-transparent bg-transparent text-sm font-semibold text-text-primary outline-none focus:border-border"
+          className="flex-1 border-b border-transparent bg-transparent text-base md:text-sm font-semibold text-text-primary outline-none focus:border-border"
           aria-label="Paycheck name"
         />
         <Button variant="ghost" size="icon" aria-label="Remove paycheck" onClick={removeSource}>
@@ -358,7 +358,7 @@ function IncomeSourceCard({
             type="date"
             value={reapplyFrom}
             onChange={(event) => setReapplyFrom(event.target.value)}
-            className="rounded-md border border-border bg-transparent px-2 py-1 text-xs text-text-primary outline-none"
+            className="rounded-md border border-border bg-transparent px-2 py-1 text-base md:text-xs text-text-primary outline-none"
             aria-label="Re-apply from date"
           />
           <Button variant="outline" size="sm" onClick={reapply}>

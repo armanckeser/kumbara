@@ -177,7 +177,7 @@ export function AddSyntheticLegForm({
           placeholder="Optional"
           value={note}
           onChange={(event) => setNote(event.target.value)}
-          className="rounded-md border border-border bg-transparent px-3 py-2 text-sm text-text-primary outline-none"
+          className="rounded-md border border-border bg-transparent px-3 py-2 text-base md:text-sm text-text-primary outline-none"
         />
       </label>
 

@@ -186,7 +186,7 @@ function InvestmentsPage() {
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <div>
             <div className="text-xs text-text-muted">Market value</div>
-            <Amount value={totals.marketValue} className="text-3xl font-display" />
+            <Amount value={totals.marketValue} className="text-3xl font-display tabular-nums" />
           </div>
           {change !== null && (
             <div

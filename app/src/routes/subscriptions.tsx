@@ -407,7 +407,7 @@ function SeriesCard({
     <li
       onClick={() => onOpen(item)}
       className={cn(
-        "flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-surface-raised p-3 transition-colors hover:border-border/80",
+        "flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-surface-raised p-3 transition-colors hover:border-border/80 active:bg-surface-overlay",
         isEnded && "opacity-60",
         selected && "border-accent ring-1 ring-accent",
       )}

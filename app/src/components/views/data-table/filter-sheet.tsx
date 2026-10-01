@@ -475,6 +475,7 @@ function FilterDimensionPage({
             <Input
               id="range-min"
               type={isDate ? "date" : "number"}
+              inputMode={isDate ? undefined : "decimal"}
               min={isDate ? undefined : 0}
               placeholder={isDate ? "yyyy-mm-dd" : "No minimum"}
               value={minInputValue}
@@ -489,6 +490,7 @@ function FilterDimensionPage({
             <Input
               id="range-max"
               type={isDate ? "date" : "number"}
+              inputMode={isDate ? undefined : "decimal"}
               min={isDate ? undefined : 0}
               placeholder={isDate ? "yyyy-mm-dd" : "No maximum"}
               value={maxInputValue}

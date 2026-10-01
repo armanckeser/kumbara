@@ -292,7 +292,7 @@ function FollowupBody({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search transactions…"
-          className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-text-muted"
+          className="w-full bg-transparent py-2 text-base md:text-sm outline-none placeholder:text-text-muted"
         />
       </div>
 
@@ -325,7 +325,7 @@ function FollowupBody({
                   type="date"
                   value={filters.dateMin}
                   onChange={(event) => patchFilter({ dateMin: event.target.value })}
-                  className="rounded-md border border-border bg-transparent px-2 py-1 text-xs text-text-primary outline-none"
+                  className="rounded-md border border-border bg-transparent px-2 py-1 text-base md:text-xs text-text-primary outline-none"
                 />
               </label>
               <label className="flex flex-col gap-1 text-[11px] text-text-muted">
@@ -334,7 +334,7 @@ function FollowupBody({
                   type="date"
                   value={filters.dateMax}
                   onChange={(event) => patchFilter({ dateMax: event.target.value })}
-                  className="rounded-md border border-border bg-transparent px-2 py-1 text-xs text-text-primary outline-none"
+                  className="rounded-md border border-border bg-transparent px-2 py-1 text-base md:text-xs text-text-primary outline-none"
                 />
               </label>
             </div>

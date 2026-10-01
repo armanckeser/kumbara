@@ -84,7 +84,7 @@ export function PositionDetailSheet({
           {/* The headline: value and direction, the same two facts the row showed, so the tap feels
               continuous rather than like a different subject. */}
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border pb-3">
-            <Amount value={detail.marketValue} className="text-3xl font-display" />
+            <Amount value={detail.marketValue} className="text-3xl font-display tabular-nums" />
             <GainText absolute={detail.gain.absolute} percent={detail.gain.percent} />
           </div>
 

@@ -91,11 +91,12 @@ function SearchInput({
       <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         ref={inputRef}
-        type="text"
+        type="search"
+        enterKeyHint="search"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 pl-8 text-sm"
+        className="h-8 pl-8 text-base md:text-sm [&::-webkit-search-cancel-button]:appearance-none"
       />
       {value && (
         <Button

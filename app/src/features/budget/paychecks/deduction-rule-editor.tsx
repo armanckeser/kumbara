@@ -170,7 +170,7 @@ export function DeductionRuleEditor({
           placeholder="Name (401k, Transit, …)"
           onChange={(event) => setDraft((d) => ({ ...d, name: event.target.value }))}
           onBlur={isEditing ? saveExisting : undefined}
-          className="flex-1 border-b border-transparent bg-transparent text-sm text-text-primary outline-none focus:border-border"
+          className="flex-1 border-b border-transparent bg-transparent text-base md:text-sm text-text-primary outline-none focus:border-border"
         />
         {isEditing && (
           <Button variant="ghost" size="icon" aria-label="Remove deduction" onClick={remove}>

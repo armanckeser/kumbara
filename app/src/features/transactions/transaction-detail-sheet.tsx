@@ -298,7 +298,7 @@ function SheetBody({
           (category search, a form field); -hidden still permits scroll-into-view on that input, which
           shoved the visible pane off to the left. -clip disables programmatic scrolling entirely. */}
       <div
-        className="flex transition-transform duration-200 ease-in-out"
+        className="flex transition-transform duration-250 ease-(--ease-drawer)"
         style={{ width: `${paneRowWidthPercent()}%`, transform: `translateX(${paneTranslatePercent(page)}%)` }}
       >
         <SheetPane active={page === "detail"}>
@@ -330,7 +330,7 @@ function SheetBody({
                   no paycheck special-case is needed here anymore. Gross is reconstructed in the Paycheck
                   panel below via paycheckFlow; it never adjusts this landed amount. */}
               <p className="text-xs text-text-muted">Final amount</p>
-              <Amount value={parseFloat(netAmount(group))} className="block text-3xl" />
+              <Amount value={parseFloat(netAmount(group))} className="block text-3xl tabular-nums" />
             </div>
 
             <AccountLine

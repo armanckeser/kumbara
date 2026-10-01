@@ -24,6 +24,7 @@ import { createDragSelectMachine, type DragRange } from "./drag-select-machine";
 import { SelectionFab } from "./selection-fab";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { useScrollDirection } from "@/lib/use-scroll-direction";
 import { useFilter } from "./filter-context";
 import { ColumnVisibilityContext } from "./column-visibility-context";
 
@@ -738,6 +739,8 @@ function GroupHeaderRow({ marker }: { marker: GroupHeaderMarker }) {
 const BACK_TO_TOP_THRESHOLD = 600;
 function BackToTopButton() {
   const [show, setShow] = useState(false);
+  // Slides down with the pill-nav when it hides on scroll-down (same hook, same 300ms drawer easing).
+  const hidden = useScrollDirection() === "down";
   useEffect(() => {
     const onScroll = () => setShow(window.scrollY > BACK_TO_TOP_THRESHOLD);
     onScroll();
@@ -755,7 +758,10 @@ function BackToTopButton() {
       type="button"
       aria-label="Back to top"
       onClick={() => window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" })}
-      className="fixed bottom-24 left-4 z-30 flex size-11 items-center justify-center rounded-full border border-border bg-surface-raised text-text-secondary shadow-lg transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={cn(
+        "fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-4 z-30 flex size-11 items-center justify-center rounded-full border border-border bg-surface-raised text-text-secondary shadow-lg transition-[color,translate,scale] duration-300 ease-(--ease-drawer) active:duration-100 hover:text-text-primary active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        hidden && "translate-y-[calc(100%+7rem)]",
+      )}
     >
       <ArrowUp className="h-5 w-5" />
     </button>
