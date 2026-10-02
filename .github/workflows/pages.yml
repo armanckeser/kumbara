@@ -32,16 +32,24 @@ jobs:
           cache: 'npm'
           cache-dependency-path: app/package-lock.json
       - run: npm ci
+      - id: pages
+        uses: actions/configure-pages@v5
       - name: Build the demo
         run: npx vite build
         env:
           VITE_DEMO: '1'
           VITE_API_URL: ''
           VITE_BASE: /${{ github.event.repository.name }}/
+          # The link preview needs the site's full address (see sharePreview in vite.config.ts).
+          VITE_SITE_URL: ${{ steps.pages.outputs.base_url }}/
+      # A preview image that 404s shows up as a blank card, not a failed build.
+      - name: Check the share preview points at a file that shipped
+        run: |
+          grep -q 'property="og:image" content="${{ steps.pages.outputs.base_url }}/og.jpg"' dist/index.html
+          test -f dist/og.jpg
       # Pages has no SPA fallback; serving index.html as the 404 page gives deep
       # links like /budget a route to land on.
       - run: cp dist/index.html dist/404.html
-      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app/dist
