@@ -1,5 +1,6 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { PillNav } from "@/components/pill-nav";
+import { DemoCredit } from "@/components/demo-credit";
 import { DevTools } from "@/components/dev-tools";
 import { IOSInstallCoach } from "@/components/ios-install-coach";
 import { AmountStyleProvider } from "@/features/transactions/settings-context";
@@ -16,6 +17,7 @@ function RootLayout() {
             the iOS home-indicator inset, which pushed the pill up over the last card on phones. */}
         <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-10">
           <Outlet />
+          {import.meta.env.VITE_DEMO === "1" && <DemoCredit />}
         </main>
         <PillNav />
         <DevTools />
