@@ -12,6 +12,8 @@ all of them.
 
 <p align="center"><b><a href="https://armanckeser.github.io/kumbara/">Click around the live demo →</a></b> &nbsp;<sub>fake household, runs entirely in your browser</sub></p>
 
+If Kumbara is useful to you, starring the repo helps other people find it, and [armanckeser.com/subscribe](https://armanckeser.com/subscribe) has ways to hear about new releases.
+
 ---
 
 ## Kumbara vs. Actual Budget
