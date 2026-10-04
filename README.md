@@ -10,7 +10,7 @@ all of them.
   <img src="img/inbox.gif" alt="Three taps in the inbox file twelve transactions: one answer covers every charge from a merchant, one confirms a transfer between your own accounts, then the budget" width="340" />
 </p>
 
-<p align="center"><b><a href="https://armanckeser.github.io/kumbara/">Click around the live demo →</a></b> &nbsp;<sub>fake household, runs entirely in your browser</sub></p>
+<p align="center"><b><a href="https://kumbara-demo.armanckeser.com/">Click around the live demo →</a></b> &nbsp;<sub>fake household, runs entirely in your browser</sub></p>
 
 If Kumbara is useful to you, starring the repo helps other people find it, and [armanckeser.com/subscribe](https://armanckeser.com/subscribe) has ways to hear about new releases.
 
