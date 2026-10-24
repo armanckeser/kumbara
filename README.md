@@ -23,6 +23,18 @@ If Kumbara is useful to you, starring the repo helps other people find it, and [
 
 Docker on a Raspberry Pi or any server, single household. Bank data comes through [SimpleFIN](https://www.simplefin.org/) (about $15 a year, paid to them). Setup is in [`app/DEPLOY.md`](app/DEPLOY.md).
 
+**From your server's app store:** add the catalog once, then install Kumbara like any other app.
+
+| Server | Where | Paste |
+| --- | --- | --- |
+| Cosmos | Market → Sources → Add Source | `https://armanckeser.github.io/selfhost-apps/servapps.json` |
+| Umbrel | App Store → ⋯ → Community App Stores | `https://github.com/armanckeser/selfhost-apps` |
+| CasaOS / ZimaOS | App Store → Add Source | `https://github.com/armanckeser/selfhost-apps/archive/refs/heads/casaos.zip` |
+| Runtipi | Settings → App Stores → Add App Store | `https://github.com/armanckeser/selfhost-apps` |
+| Portainer | Settings → App Templates → URL | `https://armanckeser.github.io/selfhost-apps/portainer/templates.json` |
+
+Unraid's Community Apps doesn't list it yet; [selfhost-apps](https://github.com/armanckeser/selfhost-apps#add-the-catalog-to-your-server) has the template to add by hand.
+
 </details>
 
 <details>
