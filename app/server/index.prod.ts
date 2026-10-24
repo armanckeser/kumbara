@@ -7,7 +7,7 @@
 // forks a background sync fiber so transactions refresh without a manual tap. This is the image the Pi's
 // docker-compose runs behind Cosmos.
 //
-// Env it reads (see .env.prod.example): DATABASE_URL, ELECTRIC_URL, PORT, HOST, SERVE_WEB, WEB_ROOT,
+// Env it reads (see deploy/.env.example and deploy/override.yml): DATABASE_URL, ELECTRIC_URL, PORT, HOST, SERVE_WEB, WEB_ROOT,
 // CORS_ORIGIN, SIMPLEFIN_START_DATE (first-pull backfill), SYNC_INTERVAL_MINUTES (0 disables the schedule).
 
 import "dotenv/config";
