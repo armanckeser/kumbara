@@ -1,0 +1,3 @@
+# Scripts that run inside Linux images stay LF on every checkout.
+*.sh text eol=lf
+app/aio/** text eol=lf

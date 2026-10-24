@@ -26,6 +26,13 @@ import {
 } from "../../../domain/transaction-summary";
 
 const USD = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+// Axis ticks only: "$25K" fits the 52px gutter where "$25,000.00" clips to "5,000.00" and misreads.
+const USD_COMPACT = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
 // Include the year: a filtered set often spans years, and a month-day-only range ("Jun 29 – Jun 15")
 // reads as reversed when the later date is in a later year. The year disambiguates it.
 const MONTH_DAY_YEAR = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -99,7 +106,7 @@ export function TransactionSummarySheet({
                       tickLine={false}
                       axisLine={false}
                       width={52}
-                      tickFormatter={(value: number) => USD.format(value)}
+                      tickFormatter={(value: number) => USD_COMPACT.format(value)}
                     />
                     <ChartTooltip
                       cursor

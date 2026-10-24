@@ -110,6 +110,24 @@ describe("inboxQuestions", () => {
     assert.strictEqual(questions[0].totalAmount, -60);
   });
 
+  it("test_rows_of_a_varies_merchant_are_separate_questions", () => {
+    // Guards the card-portal case: one merchant that books rent AND dining. Collapsing its rows into one
+    // card means one tap stamps the rent with the dinner's category.
+    const variesJoins: TransactionJoins = { ...JOINS, variesMerchantKeys: new Set(["merchant"]) };
+    const variesItem = (id: string, hash: string) =>
+      toGroupItem({ primary: decodeRow({ ...baseRowFields, id, import_hash: hash }), legs: [] }, variesJoins);
+    const rows = [
+      variesItem("00000000-0000-0000-0000-00000000000a", "h-a"),
+      variesItem("00000000-0000-0000-0000-00000000000b", "h-b"),
+    ];
+    const questions = inboxQuestions(rows);
+
+    assert.deepStrictEqual(
+      questions.map((question) => question.key),
+      ["row:00000000-0000-0000-0000-00000000000a", "row:00000000-0000-0000-0000-00000000000b"],
+    );
+  });
+
   it("test_link_candidates_stay_one_question_per_row_even_for_one_merchant", () => {
     // Guards the candidate semantics: two refund candidates from the same merchant are two DIFFERENT
     // pairings ("is A the refund of X?", "is B the refund of Y?") — collapsing them would answer a

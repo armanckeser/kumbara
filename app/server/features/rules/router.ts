@@ -56,3 +56,25 @@ export const explainTransactionRequest = (id: string): Effect.Effect<HttpResult,
         Effect.succeed(result(404, { error: "transaction not found", transaction_id: error.transaction_id })),
     }),
   );
+
+/** Edit a categorize rule's narrowing and category. Body: { account_id, direction, amount_min, amount_max,
+ *  text_match, category_id }. */
+export const editCategorizeRuleRequest = (
+  id: string,
+  body: unknown,
+): Effect.Effect<HttpResult, SqlError, RulesStore> =>
+  Effect.gen(function* () {
+    const store = yield* RulesStore;
+    return result(200, yield* store.editCategorize(id, body));
+  }).pipe(
+    Effect.catchTags({
+      SchemaError: (error) => Effect.succeed(result(400, { error: "invalid rule edit", detail: error.message })),
+      StandingRuleNotFound: (error) => Effect.succeed(result(404, { error: "rule not found", kind: error.kind, id: error.id })),
+      StandingRuleHasNoIdentity: () =>
+        Effect.succeed(result(400, { error: "a rule needs a merchant or a text term, or it matches everything" })),
+      StandingRuleDuplicate: (error) =>
+        Effect.succeed(
+          result(409, { error: "this merchant already has a rule for all its transactions", merchant_key: error.merchant_key }),
+        ),
+    }),
+  );

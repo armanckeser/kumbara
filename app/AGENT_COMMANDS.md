@@ -57,6 +57,29 @@ The real SimpleFIN feed is NOT reachable through any agent command. The user run
 (`server/features/ingestion/real-run.ts`) themselves; its output is gitignored and never read by the
 agent (R9).
 
+## Merchants with more than one category (rule questions)
+One merchant can mean several categories (a card issuer's portal books rent, dining and travel under one
+payee). `set-category` and `transactions/disposition` never re-learn a merchant from an answer that
+contradicts what it already means; they return `rule_questions` instead, each with suggested narrowings.
+```bash
+# Answer one: a narrowed rule next to the merchant's existing meaning …
+curl -X POST http://localhost:4000/api/categorization/answer-rule-question \
+  -H "Content-Type: application/json" \
+  -d '{"merchant_key":"<key>","category_id":"<id>","person_id":null,
+       "answer":{"_tag":"Narrow","account_id":null,"direction":"either","amount_min":null,"amount_max":null,"text_match":"dining"}}'
+# … or {"_tag":"Replace"} (the merchant now means this category) / {"_tag":"Varies"} (no single meaning).
+
+# Mark a merchant as varying (or back to one category) directly:
+curl -X POST http://localhost:4000/api/categorization/merchant-category-policy \
+  -H "Content-Type: application/json" -d '{"merchant_key":"<key>","policy":"varies"}'
+
+# Edit a categorize rule in place (applies to new rows):
+curl -X POST http://localhost:4000/api/rules/categorize/<rule id> \
+  -H "Content-Type: application/json" \
+  -d '{"account_id":null,"direction":"either","amount_min":null,"amount_max":"500.00","text_match":null,"category_id":"<id>"}'
+```
+`merchant.category_policy` (`single` | `varies`) is readable via agent_reader.
+
 ## Equity grants (RSU tracking for stock-plan accounts)
 Reads stream over Electric / agent_reader (`equity_grant`, `equity_tranche`); writes go through the API.
 The feed prices everything (account balance = sellable value; plan holding market_value = total value);

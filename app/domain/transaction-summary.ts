@@ -1,24 +1,49 @@
 // Pure summary of an arbitrary set of transaction rows (Issue #19). The Transactions ledger already holds
 // the filtered, grouped, refund-netted rows the user sees; this generalizes the subscription drill-in's
 // "great graph + stats" (domain/lineage.ts stitchLineage) to ANY filtered set. It is deliberately a pure
-// function over the minimal { amountValue, date } shape so the browser can summarize exactly the rows it
-// already has in hand — the numbers match the ledger by construction, no server round-trip.
+// function over the minimal { amountValue, date, exclusion, bucket } shape so the browser can summarize
+// exactly the rows it already has in hand — the numbers match the ledger by construction, no server
+// round-trip.
 //
-// Sign convention (domain/transaction.ts netAmount): amountValue is the net SIGNED amount — negative is
-// spend, positive is income. totalSpend is reported as a positive magnitude; net is income minus spend.
+// What a row counts as is read from its already-decided state, NOT from its sign — the ledger lists
+// transfers and card payments too, and summing those by sign counts the same dollar as spend on one leg
+// and income on the other. The levels mirror domain/budget.ts budgetLines at the group grain:
+//   - off-budget: an excluded row (a decided transfer) or a transfer-bucket category — in no money figure.
+//   - saved:      a savings-bucket category — your own money set aside, neither spend nor income.
+//   - income:     an income-bucket category, SIGNED (a clawback reduces income).
+//   - spend:      everything else (needs / wants / taxes / uncategorized), SIGNED so a refund nets against
+//                 spend instead of reading as income.
+// Sign convention (domain/transaction.ts netAmount): amountValue is the net SIGNED amount, outflow negative.
+// totalSpend is reported as a positive magnitude; net is income minus spend.
 
-/** The minimal shape summarizeTransactions needs from a row: its net signed amount and a date. Every
- *  TransactionGroupItem satisfies this (amountValue + date), so the caller passes filteredItems directly. */
+import type { Bucket, Exclusion } from "./common";
+
+/** The minimal shape summarizeTransactions needs from a row: its net signed amount, a date, and the two
+ *  decided facts that say what the money counted as. Every TransactionGroupItem satisfies this, so the
+ *  caller passes filteredItems directly. */
 export interface SummarizableTransaction {
   readonly amountValue: number;
   readonly date: string;
+  readonly exclusion: Exclusion;
+  /** The row's category bucket, or null when uncategorized. */
+  readonly bucket: Bucket | null;
 }
+
+/** Which headline figure a row's money lands in. Every row lands in exactly one. */
+type SummaryLevel = "spend" | "income" | "saved" | "off_budget";
+
+const levelOf = (transaction: SummarizableTransaction): SummaryLevel => {
+  if (transaction.exclusion === "excluded" || transaction.bucket === "transfer") return "off_budget";
+  if (transaction.bucket === "income") return "income";
+  if (transaction.bucket === "savings") return "saved";
+  return "spend";
+};
 
 /** How finely the spend-over-time line is bucketed, chosen from the date span so a week of transactions
  *  reads day-by-day while a multi-year filter reads month-by-month. */
 export type SummaryGranularity = "day" | "week" | "month";
 
-/** One point on the spend-over-time line: a time bucket and the total spend (positive magnitude) in it.
+/** One point on the spend-over-time line: a time bucket and the spend in it (net of refunds).
  *  `date` is the bucket's start (ISO YYYY-MM-DD); `label` is a short human label for the axis. */
 export interface SpendPoint {
   readonly date: string;
@@ -34,7 +59,8 @@ export interface TransactionSummary {
   readonly totalIncome: number;
   /** Income minus spend: positive is a surplus, negative a deficit over the set. */
   readonly net: number;
-  /** Mean spend across the SPENDING rows only (income rows excluded); 0 when there are none. */
+  /** totalSpend over the count of spend-level OUTFLOW rows (income, saved, off-budget, and refund rows
+   *  stay out of the denominator); 0 when there are none. */
   readonly averageSpend: number;
   readonly firstDate: string | null;
   readonly lastDate: string | null;
@@ -93,9 +119,10 @@ const bucketOf = (day: string, granularity: SummaryGranularity): { key: string; 
 
 /**
  * Summarize a set of transactions into headline stats + a spend-over-time line. Pure and deterministic:
- * same rows, same result. Spend rows (negative amountValue) drive totalSpend, averageSpend, and the chart;
- * income rows (positive) drive totalIncome; net is income minus spend. An empty set yields all-zero stats,
- * a "day" granularity, and no points (the sheet shows its empty state) rather than throwing.
+ * same rows, same result. Spend-level rows (see levelOf) drive totalSpend, averageSpend, and the chart;
+ * income-level rows drive totalIncome; net is income minus spend. Saved and off-budget rows count toward
+ * `count` and the date range only. An empty set yields all-zero stats, a "day" granularity, and no points
+ * (the sheet shows its empty state) rather than throwing.
  */
 export const summarizeTransactions = (
   transactions: ReadonlyArray<SummarizableTransaction>,
@@ -120,11 +147,12 @@ export const summarizeTransactions = (
   const days = transactions.map((transaction) => isoDay(transaction.date));
 
   for (const transaction of transactions) {
-    if (transaction.amountValue < 0) {
-      totalSpend += -transaction.amountValue;
-      spendCount += 1;
-    } else {
+    const level = levelOf(transaction);
+    if (level === "income") {
       totalIncome += transaction.amountValue;
+    } else if (level === "spend") {
+      totalSpend += -transaction.amountValue;
+      if (transaction.amountValue < 0) spendCount += 1;
     }
   }
 
@@ -133,9 +161,10 @@ export const summarizeTransactions = (
   const granularity = pickGranularity(firstDate, lastDate);
 
   // Accumulate spend per bucket, preserving each bucket's start-day + label for a chronological axis.
+  // Signed like totalSpend (a refund lowers its bucket), so the points always sum to the headline.
   const spendByBucket = new Map<string, { label: string; spend: number }>();
   for (const transaction of transactions) {
-    if (transaction.amountValue >= 0) continue; // income doesn't add to the spend line
+    if (levelOf(transaction) !== "spend") continue; // only spend-level rows are on the spend line
     const { key, label } = bucketOf(isoDay(transaction.date), granularity);
     const existing = spendByBucket.get(key);
     if (existing === undefined) {

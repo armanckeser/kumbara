@@ -10,8 +10,8 @@
 
 import { Context, Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
-import { AccountId, MerchantKey, Money } from "../../../domain/common";
-import { RuleRow } from "../../../domain/rule";
+import { AccountId, CategoryId, MerchantKey, Money } from "../../../domain/common";
+import { RuleCondition, RuleDirection, RuleRow, isLearnableCondition } from "../../../domain/rule";
 import {
   type RuleDecidedRow,
   type StandingDirection,
@@ -24,7 +24,13 @@ import {
   transferScopeCovers,
 } from "../../../domain/standing-rules";
 import { CategorizationStore } from "../categorization/categorization-store";
-import { ExplainTransactionNotFound, StandingRuleNotFound, StandingRuleNotPausable } from "./errors";
+import {
+  ExplainTransactionNotFound,
+  StandingRuleDuplicate,
+  StandingRuleHasNoIdentity,
+  StandingRuleNotFound,
+  StandingRuleNotPausable,
+} from "./errors";
 
 const decodeRuleRows = Schema.decodeUnknownSync(Schema.Array(RuleRow));
 const decodeDecidedRows = Schema.decodeUnknownSync(
@@ -41,6 +47,18 @@ const decodeDecidedRows = Schema.decodeUnknownSync(
 const decodeRouteKind = Schema.decodeUnknownEffect(Schema.Literals(STANDING_RULE_KINDS));
 const decodeStateBody = Schema.decodeUnknownEffect(
   Schema.Struct({ state: Schema.Literals(["active", "paused"]) }),
+);
+/** An edit to a categorize rule: its narrowing and its category. The merchant is the rule's identity and is
+ *  not editable (a different merchant is a different rule). */
+const decodeEditCategorize = Schema.decodeUnknownEffect(
+  Schema.Struct({
+    account_id: Schema.NullOr(AccountId),
+    direction: RuleDirection,
+    amount_min: Schema.NullOr(Money),
+    amount_max: Schema.NullOr(Money),
+    text_match: Schema.NullOr(Schema.NonEmptyString),
+    category_id: CategoryId,
+  }),
 );
 
 export interface WriteResult {
@@ -472,7 +490,47 @@ export class RulesStore extends Context.Service<RulesStore>()("kumbara/rules/Rul
       return explanation;
     });
 
-    return { overview, setState, remove, explain } as const;
+    /**
+     * Edit a categorize rule in place — narrow it (add a text term or an amount range), widen it, or point it
+     * at another category — instead of deleting it and waiting for the inbox to re-teach it. Applies to NEW
+     * transactions; rows it already categorized keep their category. Rejects an edit that leaves no merchant
+     * and no text term (it would match everything), and one that would make a second merchant-wide rule for
+     * a merchant that already has one.
+     */
+    const editCategorize = Effect.fn("RulesStore.editCategorize")(function* (id: string, body: unknown) {
+      const input = yield* decodeEditCategorize(body);
+      return yield* sql.withTransaction(
+        Effect.gen(function* () {
+          const txid = yield* currentTxid();
+          const existing = (yield* loadRuleRows()).find((row) => row.id === id && row.action_kind === "categorize");
+          if (existing === undefined) return yield* new StandingRuleNotFound({ kind: "categorize", id });
+          const condition = new RuleCondition({ ...input, merchant_key: existing.merchant_key });
+          if (!isLearnableCondition(condition)) return yield* new StandingRuleHasNoIdentity({ id });
+          const merchantWide =
+            input.account_id === null && input.direction === "either" && input.amount_min === null &&
+            input.amount_max === null && input.text_match === null;
+          if (merchantWide && existing.merchant_key !== null) {
+            const clash = yield* sql<{ id: string }>`
+              SELECT id::text AS id FROM rule
+              WHERE id <> ${id} AND merchant_key = ${existing.merchant_key} AND action_kind = 'categorize'
+                AND account_id IS NULL AND direction = 'either' AND amount_min IS NULL AND amount_max IS NULL
+                AND text_match IS NULL
+            `;
+            if (clash.length > 0) return yield* new StandingRuleDuplicate({ id, merchant_key: existing.merchant_key });
+          }
+          yield* sql`
+            UPDATE rule
+            SET account_id = ${input.account_id}, direction = ${input.direction}, amount_min = ${input.amount_min},
+                amount_max = ${input.amount_max}, text_match = ${input.text_match}, category_id = ${input.category_id},
+                source = 'user', updated_at = NOW()
+            WHERE id = ${id}
+          `;
+          return { txid } satisfies WriteResult;
+        }),
+      );
+    });
+
+    return { overview, setState, remove, explain, editCategorize } as const;
   }),
 }) {}
 

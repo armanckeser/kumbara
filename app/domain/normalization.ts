@@ -44,6 +44,15 @@ export type MerchantSource = typeof MerchantSource.Type;
 export const MerchantTransferOverride = Schema.Literals(["confirmed_spending"]);
 export type MerchantTransferOverride = typeof MerchantTransferOverride.Type;
 
+/** How many categories one merchant's transactions fall into, as the user told us. `single` (the default) is
+ *  the ordinary merchant: one answer teaches "this merchant means X". `varies` is a merchant that is really a
+ *  platform — a card issuer's own portal that books rent, dining and travel under one payee, a marketplace —
+ *  so "the last one was dining" says nothing about the next. A `varies` merchant is categorized like a P2P
+ *  rail: only explicit rules (narrowed by text/amount/account) and the description's own words count, never
+ *  a merchant-wide memory or KB default, and its rows are asked about one at a time. An enum (R8). */
+export const MerchantCategoryPolicy = Schema.Literals(["single", "varies"]);
+export type MerchantCategoryPolicy = typeof MerchantCategoryPolicy.Type;
+
 // ---------- the cleanup recipe (normalization_rules.yaml) ----------
 
 /** One literal-for-literal replacement applied after stripping (Appendix B.2 `replace`). `from` is a

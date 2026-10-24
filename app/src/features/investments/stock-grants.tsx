@@ -46,7 +46,8 @@ export function StockGrantsSection({ accounts }: { accounts: ReadonlyArray<Pick<
   const grants = useMemo(() => (grantData ?? []).map((row) => decodeGrant(row)), [grantData]);
   const tranches = useMemo(() => (trancheData ?? []).map((row) => decodeTranche(row)), [trancheData]);
   const prices = useMemo(() => (priceData ?? []).map((row) => decodePrice(row)), [priceData]);
-  const today = new Date().toISOString().slice(0, 10);
+  // The local calendar day: a UTC date flips to tomorrow in the evening and counts tomorrow's vest early.
+  const today = new Date().toLocaleDateString("en-CA");
   const positions = useMemo(() => equityPositions(grants, tranches, prices, today), [grants, tranches, prices, today]);
   const [addOpen, setAddOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);

@@ -49,6 +49,8 @@ import migration0230 from "./migrations/0230_institution_name_source";
 import migration0240 from "./migrations/0240_paycheck_period_lifecycle";
 import migration0250 from "./migrations/0250_p2p_rails";
 import migration0260 from "./migrations/0260_equity_by_security";
+import migration0270 from "./migrations/0270_merchant_category_policy";
+import migration0280 from "./migrations/0280_instance_secret";
 
 const DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://postgres:password@localhost:5433/app";
 
@@ -57,7 +59,7 @@ const SqlLayer = PgClient.layer({ url: Redacted.make(DATABASE_URL) });
 // Keys MUST match /^(\d+)_(.+)$/ — Migrator parses the numeric prefix as the id and the rest as the name,
 // then runs them in id order. New migrations are added here with the next number. 0001 is the squashed
 // baseline (the former 0001–0009 collapsed into one); the next real change becomes "2_...".
-const loader = PgMigrator.fromRecord({
+export const loader = PgMigrator.fromRecord({
   "1_initial_schema": migration0001,
   "2_transfer_disposition_reasons": migration0002,
   "3_category_management": migration0003,
@@ -140,6 +142,11 @@ const loader = PgMigrator.fromRecord({
   // Equity grants belong to a stock, not an account: equity_grant.account_id optional (SET NULL on account
   // delete) + security_price, the per-symbol close that values unvested shares. Above the mark (250).
   "260_equity_by_security": migration0260,
+  // merchant.category_policy — single (one merchant, one category) vs varies (a platform payee whose rows
+  // span categories, learned only through narrowed rules). Above the mark (260).
+  "270_merchant_category_policy": migration0270,
+  // instance_secret: what a self-hosted install generates for itself on first boot (server/boot.ts).
+  "280_instance_secret": migration0280,
 });
 
 const program = PgMigrator.run({ loader }).pipe(
@@ -150,4 +157,10 @@ const program = PgMigrator.run({ loader }).pipe(
   ),
 );
 
-NodeRuntime.runMain(program.pipe(Effect.provide(Layer.mergeAll(SqlLayer, NodeServices.layer))));
+// Run only as a command (`npm run migrate`, the dist/migrate.js bundle). boot.ts imports `loader` and runs
+// the same migrations itself on every container start.
+// (Checked by file name, not import.meta.url: inside the boot.js bundle this module's import.meta.url is
+// boot.js itself.)
+if (/migrate\.(ts|js)$/.test(process.argv[1] ?? "")) {
+  NodeRuntime.runMain(program.pipe(Effect.provide(Layer.mergeAll(SqlLayer, NodeServices.layer))));
+}

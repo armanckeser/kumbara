@@ -4,7 +4,7 @@
 //
 // Auth (added when Kumbara grew app-level OIDC auth, commit a5e60f7): prod's /api/* is gated by
 // AUTH_ENABLED. This script authenticates as the agent via `Authorization: Bearer <AGENT_API_TOKEN>` —
-// fetched automatically over ssh from the kumbara-api container's env unless AGENT_API_TOKEN is already
+// fetched automatically over ssh from the kumbara-app container's env unless AGENT_API_TOKEN is already
 // set. Local dev has no auth (AUTH_ENABLED unset), so --source=local never needs a token.
 //
 // Gotcha worth knowing before using `transfer`: transactions/disposition's Transfer branch only accepts a
@@ -49,13 +49,13 @@ const fetchAgentToken = (): string => {
   if (process.env.AGENT_API_TOKEN !== undefined && process.env.AGENT_API_TOKEN.length > 0) {
     return process.env.AGENT_API_TOKEN;
   }
-  return execFileSync("ssh", [PROD_SSH_HOST, "docker exec kumbara-api printenv AGENT_API_TOKEN"], {
+  return execFileSync("ssh", [PROD_SSH_HOST, "docker exec kumbara-app printenv AGENT_API_TOKEN"], {
     encoding: "utf8",
   }).trim();
 };
 
-// POST through the Pi's real api via ssh + curl run ON THE PI (kumbara-api has no curl; nginx already
-// proxies /api/ on the published port). Base64-piped so the JSON body's quotes never have to survive
+// POST through the Pi's real api via ssh + curl run ON THE PI (kumbara-app has no curl; the app serves
+// /api/ on the published port). Base64-piped so the JSON body's quotes never have to survive
 // local -> ssh -> remote sh -c quoting. Mirrors resolve-transfer-cluster.ts's postProd, plus the bearer
 // token the new OIDC-gated /api/* surface requires.
 const postProd = (path: string, body: unknown, token: string): unknown => {

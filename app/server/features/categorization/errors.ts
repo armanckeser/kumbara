@@ -15,3 +15,10 @@ export class CategoryNotFound extends Schema.TaggedErrorClass<CategoryNotFound>(
 export class RuleHasNoIdentity extends Schema.TaggedErrorClass<RuleHasNoIdentity>()("RuleHasNoIdentity", {
   detail: Schema.String,
 }) {}
+
+/** A "narrow" answer to a rule question that carries no condition at all — that would be the merchant-wide
+ *  rule the question exists to avoid. Rejected (400); a merchant-wide answer is the explicit Replace. */
+export class NarrowRuleHasNoCondition extends Schema.TaggedErrorClass<NarrowRuleHasNoCondition>()(
+  "NarrowRuleHasNoCondition",
+  { merchant_key: Schema.String },
+) {}

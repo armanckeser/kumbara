@@ -17,21 +17,37 @@ const money = (value: string): string =>
 const directionPhrase = (direction: "in" | "out" | "either"): string =>
   direction === "in" ? "money coming in" : direction === "out" ? "money going out" : "money in or out";
 
+/** The narrowing half of a categorize rule's `when` — everything but the merchant — as short phrases. Shared
+ *  by the Rules page and the rule-question prompt so a suggestion reads exactly like the rule it becomes. */
+export interface ConditionFields {
+  readonly account_id: string | null;
+  readonly direction: "in" | "out" | "either";
+  readonly amount_min: string | null;
+  readonly amount_max: string | null;
+  readonly text_match: string | null;
+}
+export const conditionPhrases = (condition: ConditionFields, names: RuleNames): string[] => {
+  const parts: string[] = [];
+  if (condition.text_match !== null) parts.push(`text contains “${condition.text_match}”`);
+  if (condition.account_id !== null) parts.push(`on ${names.account(condition.account_id)}`);
+  if (condition.direction !== "either") parts.push(condition.direction === "in" ? "incoming" : "outgoing");
+  if (condition.amount_min !== null && condition.amount_max !== null && condition.amount_min === condition.amount_max) {
+    parts.push(`exactly ${money(condition.amount_min)}`);
+  } else {
+    if (condition.amount_min !== null) parts.push(`at least ${money(condition.amount_min)}`);
+    if (condition.amount_max !== null) parts.push(`at most ${money(condition.amount_max)}`);
+  }
+  return parts;
+};
+
 /** "When" half of a rule: what it matches, in words. */
 export const ruleCondition = (rule: StandingRule, names: RuleNames): string => {
   switch (rule._tag) {
     case "Categorize": {
-      const parts: string[] = [];
-      if (rule.merchant_key !== null) parts.push(names.merchant(rule.merchant_key));
-      if (rule.text_match !== null) parts.push(`text contains “${rule.text_match}”`);
-      if (rule.account_id !== null) parts.push(`on ${names.account(rule.account_id)}`);
-      if (rule.direction !== "either") parts.push(rule.direction === "in" ? "incoming" : "outgoing");
-      if (rule.amount_min !== null && rule.amount_max !== null && rule.amount_min === rule.amount_max) {
-        parts.push(`exactly ${money(rule.amount_min)}`);
-      } else {
-        if (rule.amount_min !== null) parts.push(`at least ${money(rule.amount_min)}`);
-        if (rule.amount_max !== null) parts.push(`at most ${money(rule.amount_max)}`);
-      }
+      const parts = [
+        ...(rule.merchant_key !== null ? [names.merchant(rule.merchant_key)] : []),
+        ...conditionPhrases(rule, names),
+      ];
       return parts.length === 0 ? "Every transaction" : parts.join(" · ");
     }
     case "Transfer":

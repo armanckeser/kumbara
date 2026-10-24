@@ -260,5 +260,89 @@ if (TEST_DATABASE_URL === undefined) {
         }),
       ),
     );
+
+    // ---------- editing a categorize rule in place ----------
+
+    const insertRule = (fields: Record<string, unknown>) =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient;
+        const rows = yield* sql<{ id: string }>`
+          INSERT INTO rule ${sql.insert({ action_kind: "categorize", direction: "either", source: "user", status: "active", ...fields })}
+          RETURNING id::text AS id
+        `;
+        return rows[0].id;
+      });
+
+    const readRule = (id: string) =>
+      Effect.gen(function* () {
+        const sql = yield* SqlClient;
+        const rows = yield* sql<{ category_id: string; text_match: string | null; amount_max: string | null }>`
+          SELECT category_id::text AS category_id, text_match, amount_max::text AS amount_max FROM rule WHERE id = ${id}
+        `;
+        return rows[0];
+      });
+
+    const edit = (fields: Partial<Record<string, unknown>>) => ({
+      account_id: null,
+      direction: "either",
+      amount_min: null,
+      amount_max: null,
+      text_match: null,
+      ...fields,
+    });
+
+    it.effect("editing a merchant-wide rule narrows it in place (no delete-and-re-teach)", () =>
+      withRollback(
+        Effect.gen(function* () {
+          const store = yield* RulesStore;
+          const dining = yield* seedCategory("Edit Dining");
+          const travel = yield* seedCategory("Edit Travel");
+          const id = yield* insertRule({ merchant_key: "test-edit-narrow", category_id: travel });
+          yield* store.editCategorize(id, edit({ text_match: "dining", amount_max: "500.00", category_id: dining }));
+          return { rule: yield* readRule(id), dining };
+        }),
+      ).pipe(
+        Effect.map(({ rule, dining }) => {
+          assert.strictEqual(rule.category_id, dining);
+          assert.strictEqual(rule.text_match, "dining");
+          assert.strictEqual(rule.amount_max, "500.00");
+        }),
+      ),
+    );
+
+    it.effect("an edit that would make a second merchant-wide rule is refused", () =>
+      withRollback(
+        Effect.gen(function* () {
+          const store = yield* RulesStore;
+          const travel = yield* seedCategory("Edit Travel 2");
+          yield* insertRule({ merchant_key: "test-edit-dup", category_id: travel });
+          const narrow = yield* insertRule({ merchant_key: "test-edit-dup", category_id: travel, text_match: "dining" });
+          const exit = yield* Effect.exit(store.editCategorize(narrow, edit({ category_id: travel })));
+          return { exit, rule: yield* readRule(narrow) };
+        }),
+      ).pipe(
+        Effect.map(({ exit, rule }) => {
+          assert.isTrue(exit._tag === "Failure" && String(exit.cause).includes("StandingRuleDuplicate"));
+          assert.strictEqual(rule.text_match, "dining");
+        }),
+      ),
+    );
+
+    it.effect("an edit that leaves no merchant and no text is refused (it would match everything)", () =>
+      withRollback(
+        Effect.gen(function* () {
+          const store = yield* RulesStore;
+          const travel = yield* seedCategory("Edit Travel 3");
+          const id = yield* insertRule({ merchant_key: null, category_id: travel, text_match: "airline" });
+          const exit = yield* Effect.exit(store.editCategorize(id, edit({ amount_max: "100.00", category_id: travel })));
+          return { exit, rule: yield* readRule(id) };
+        }),
+      ).pipe(
+        Effect.map(({ exit, rule }) => {
+          assert.isTrue(exit._tag === "Failure" && String(exit.cause).includes("StandingRuleHasNoIdentity"));
+          assert.strictEqual(rule.text_match, "airline");
+        }),
+      ),
+    );
   });
 }

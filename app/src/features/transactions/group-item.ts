@@ -61,6 +61,9 @@ export interface TransactionJoins {
    *  `"diverged"` status makes the group an inbox anomaly; the expected/actual net drive the card + sheet.
    *  Absent for the vast majority of groups (not paychecks). A pure projection of the server verdict (R2). */
   readonly paycheckByTxnId?: ReadonlyMap<string, PaycheckReconciliation>;
+  /** merchant_keys the user marked `varies` (one payee, many kinds of purchase — merchant.category_policy).
+   *  Their rows are asked about one at a time in the inbox, never as one cohort. Absent = none vary. */
+  readonly variesMerchantKeys?: ReadonlySet<string>;
 }
 
 /** The streamed paycheck reconciliation a group carries (Pitch 38): the server-computed status + the
@@ -280,6 +283,9 @@ export interface TransactionGroupItem extends Record<string, unknown> {
    *  Drives the "group by likely category" inbox so similar rows cluster; a decided row uses its own
    *  category. A pure projection of decided state (R2). */
   readonly likelyCategory: string | null;
+  /** The merchant's category policy (merchant.category_policy): `varies` rows are separate inbox questions,
+   *  since one answer about them says nothing about the next. */
+  readonly categoryPolicy: "single" | "varies";
   /** Derived lifecycle tag (Pending | Posted | Voided) — drives the state badge + filter. */
   readonly state: "Pending" | "Posted" | "Voided";
   /** The DERIVED budget mirror of the group's Disposition ('excluded' only for a transfer). Struck through
@@ -376,6 +382,8 @@ export const toGroupItem = (group: TransactionGroup, joins: TransactionJoins): T
     categoryIcon,
     bucket,
     likelyCategory,
+    categoryPolicy:
+      primary.merchant_key !== null && joins.variesMerchantKeys?.has(primary.merchant_key) === true ? "varies" : "single",
     state: deriveTxnState(primary)._tag,
     exclusion: primary.exclusion,
     isAnomaly,

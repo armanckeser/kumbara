@@ -56,6 +56,13 @@ await build({
   outfile: join(outDir, "migrate.js"),
 });
 
+// The container entrypoint: migrations + first-boot secrets, then index.prod (see boot.ts).
+await build({
+  ...common,
+  entryPoints: [join(serverDir, "boot.ts")],
+  outfile: join(outDir, "boot.js"),
+});
+
 // The normalization seed assets (7 yaml + 1 jsonl) are read at LAYER CONSTRUCTION on every boot via
 // path.join(import.meta.dirname, "seed") in seed-loader.ts. esbuild does not trace/copy them (no static
 // import), so ship them next to the bundle: import.meta.dirname of dist/index.prod.js is dist/, so the
@@ -65,4 +72,4 @@ const seedDest = join(outDir, "seed");
 mkdirSync(seedDest, { recursive: true });
 cpSync(seedSource, seedDest, { recursive: true });
 
-console.log(`\nBundled to ${outDir} (index.prod.js, migrate.js) + copied seed/ -> dist/seed/`);
+console.log(`\nBundled to ${outDir} (index.prod.js, migrate.js, boot.js) + copied seed/ -> dist/seed/`);

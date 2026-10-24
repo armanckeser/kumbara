@@ -4,7 +4,7 @@
 // real API the inbox UI calls (POST /api/links/keep-out-one-sided — R6, no raw SQL writes), then seeds a
 // one-sided transfer_rule per (account, merchant_key) pair so the pattern never resurfaces as a new inbox
 // anomaly (POST /api/links/transfer-rule). Reads are direct psql (R9: personal Claude only, agent_reader
-// role); writes go through the real api container via the published nginx port on the Pi.
+// role); writes go through the real app container via its published port on the Pi.
 //
 // Usage:
 //   npx tsx server/scripts/resolve-transfer-cluster.ts --source=prod                # dry run (default)
@@ -79,18 +79,18 @@ const fetchOpenLinks = (): OpenLink[] => {
 };
 
 // A service token for prod's OIDC-gated /api/* (added after this script was written, commit a5e60f7).
-// Fetched from the kumbara-api container's env unless already set locally.
+// Fetched from the kumbara-app container's env unless already set locally.
 const fetchAgentToken = (): string => {
   if (process.env.AGENT_API_TOKEN !== undefined && process.env.AGENT_API_TOKEN.length > 0) {
     return process.env.AGENT_API_TOKEN;
   }
-  return execFileSync("ssh", [PROD_SSH_HOST, "docker exec kumbara-api printenv AGENT_API_TOKEN"], {
+  return execFileSync("ssh", [PROD_SSH_HOST, "docker exec kumbara-app printenv AGENT_API_TOKEN"], {
     encoding: "utf8",
   }).trim();
 };
 
-// A POST through the Pi's real api, via curl on the HOST (not a container — kumbara-api has no curl, and
-// nginx already proxies /api/ on the published port). Base64-piped so the JSON body's quotes never have to
+// A POST through the Pi's real api, via curl on the HOST (not a container — kumbara-app has no curl, and
+// the app serves /api/ on the published port). Base64-piped so the JSON body's quotes never have to
 // survive three layers of shell quoting (local -> ssh -> remote sh -c).
 const postProd = (path: string, body: unknown): { status: string } => {
   const json = JSON.stringify(body);

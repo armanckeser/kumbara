@@ -22,3 +22,17 @@ export class StandingRuleNotPausable extends Schema.TaggedErrorClass<StandingRul
   "StandingRuleNotPausable",
   { kind: Schema.String },
 ) {}
+
+/** An edit that would leave a categorize rule with no merchant and no text term — it would match every
+ *  transaction (see domain/rule.ts isLearnableCondition). 400. */
+export class StandingRuleHasNoIdentity extends Schema.TaggedErrorClass<StandingRuleHasNoIdentity>()(
+  "StandingRuleHasNoIdentity",
+  { id: Schema.String },
+) {}
+
+/** An edit that would turn a narrowed rule into a second merchant-wide rule for a merchant that already has
+ *  one (one merchant-wide rule per merchant). 409 — edit or delete the existing one instead. */
+export class StandingRuleDuplicate extends Schema.TaggedErrorClass<StandingRuleDuplicate>()(
+  "StandingRuleDuplicate",
+  { id: Schema.String, merchant_key: Schema.String },
+) {}

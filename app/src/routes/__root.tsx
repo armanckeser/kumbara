@@ -4,6 +4,7 @@ import { DemoCredit } from "@/components/demo-credit";
 import { DevTools } from "@/components/dev-tools";
 import { IOSInstallCoach } from "@/components/ios-install-coach";
 import { AmountStyleProvider } from "@/features/transactions/settings-context";
+import { RuleQuestionHost } from "@/features/rules/rule-question-prompt";
 
 export const Route = createRootRoute({ component: RootLayout });
 
@@ -22,6 +23,8 @@ function RootLayout() {
         <PillNav />
         <DevTools />
         <IOSInstallCoach />
+        {/* "What makes this one different?" — asked after any categorize write that contradicts a merchant. */}
+        <RuleQuestionHost />
       </div>
     </AmountStyleProvider>
   );

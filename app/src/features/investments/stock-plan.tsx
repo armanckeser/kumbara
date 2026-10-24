@@ -76,7 +76,8 @@ export function StockPlanSection({
   tranches: ReadonlyArray<EquityTrancheRow>;
 }) {
   const [addOpen, setAddOpen] = useState(false);
-  const today = new Date().toISOString().slice(0, 10);
+  // The local calendar day: a UTC date flips to tomorrow in the evening and counts tomorrow's vest early.
+  const today = new Date().toLocaleDateString("en-CA");
 
   const summary = useMemo(
     () =>

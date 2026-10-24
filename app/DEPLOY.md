@@ -21,16 +21,19 @@ on the Pi, Cosmos discovers it from the compose labels and fronts it with TLS + 
 |---------|-----------|--------------|
 | Postgres | kumbara-postgres | none, internal only |
 | Electric | kumbara-electric | none, internal only |
-| API (live, real feed) | kumbara-api | none, internal only |
-| Frontend (nginx) | kumbara-frontend | 5182 |
+| App (web + live API, real feed) | kumbara-app | 5182 → 8080 |
 
-Only the frontend is published. nginx serves the SPA and proxies `/api/` (including `/api/electric/*`
-shapes) to the api container, so web + API are one origin. Postgres/Electric/API talk over the compose
-network. Cosmos discovers the stack from the `cosmos-stack` labels; `kumbara-frontend` is the main entry.
+Only the app is published. It serves the web app and `/api/` (including `/api/electric/*` shapes) from one
+port, so web + API are one origin. Postgres/Electric talk over the compose network. Cosmos discovers the stack
+from the `cosmos-stack` labels; `kumbara-app` is the main entry, routed as `http://kumbara-app:8080`.
+
+This is the Pi's stack (`docker-compose.prod.yml`, published as `kumbara-pi`). Other people install
+`docker-compose.selfhost.yml` (`kumbara-stack`), the all-in-one `ghcr.io/armanckeser/kumbara:aio`, or a store
+package generated from `selfhost/app.yaml` by armanckeser/selfhost-apps.
 
 ## Deploy (push-to-release, no build on the Pi)
 
-Tag a release → GitHub Actions builds the `arm64` images and pushes them to ghcr → the Pi pulls. The Pi no
+Publish a release → GitHub Actions builds the `amd64` + `arm64` images and pushes them to ghcr → the Pi pulls. The Pi no
 longer builds from source (slow on a memory-starved box).
 
 **1. Cut a release** (from your machine):
@@ -40,10 +43,10 @@ git tag v1.2.3 && git push origin v1.2.3
 # then publish a GitHub Release for that tag (or trigger the "Release" workflow manually via workflow_dispatch)
 ```
 
-`release.yml` pushes `ghcr.io/armanckeser/kumbara-api` and `ghcr.io/armanckeser/kumbara-frontend`, tagged with
-the release tag **and** `latest`.
+`release.yml` pushes `ghcr.io/armanckeser/kumbara` tagged `1.2.3`, `1.2` and `latest` (no `v`), the all-in-one
+`:1.2.3-aio` / `:aio`, and the `kumbara-stack` and `kumbara-pi` compose artifacts. The packages are public.
 
-**2. One-time Pi setup** — the packages are private, so the Pi must authenticate to ghcr once. Generate a
+**2. One-time Pi setup** — only needed while a package is still private: the Pi must authenticate to ghcr once. Generate a
 GitHub **classic** PAT with only the `read:packages` scope, then:
 
 ```bash
@@ -51,20 +54,19 @@ ssh $PI_HOST "echo <PAT> | docker login ghcr.io -u armanckeser --password-stdin"
 ```
 
 **Nothing needs rsyncing.** The release publishes `docker-compose.prod.yml` itself to ghcr as an OCI
-artifact (`kumbara-stack`), so the compose file is versioned with the images it expects. `nginx.conf` is
-baked into the frontend image by `Dockerfile`, so it does not belong on the Pi either.
+artifact (`kumbara-pi`), so the compose file is versioned with the images it expects.
 
 **3. Up** (on the Pi):
 
 ```bash
 ssh $PI_HOST "cd ~/kumbara && \
-  docker compose -f oci://ghcr.io/armanckeser/kumbara-stack:v1.2.3 up -d -y"
+  docker compose -f oci://ghcr.io/armanckeser/kumbara-pi:1.2.3 up -d -y"
 ```
 
 Inspect exactly what a version contains first (`config` never prompts):
 
 ```bash
-docker compose -f oci://ghcr.io/armanckeser/kumbara-stack:v1.2.3 config
+docker compose -f oci://ghcr.io/armanckeser/kumbara-pi:1.2.3 config
 ```
 
 Three things about that command:
@@ -83,7 +85,7 @@ Three things about that command:
 
 ```bash
 ssh $PI_HOST "cd ~/kumbara && \
-  docker compose -f oci://ghcr.io/armanckeser/kumbara-stack:v1.2.2 up -d -y"
+  docker compose -f oci://ghcr.io/armanckeser/kumbara-pi:1.2.2 up -d -y"
 ```
 
 `TAG=v1.2.2` no longer does anything useful. The artifact is published with `--resolve-image-digests`, so
@@ -91,27 +93,13 @@ every image (including `postgres:16-alpine` and `electric`) is pinned to a `sha2
 the `${TAG:-latest}` reference in the base file. A given stack version is byte-identical forever, and the
 artifact tag is the only version knob.
 
-> **"Bad Gateway after login" / `api could not be resolved`.** If the frontend serves the SPA but every
-> `/api/electric/*` shape 502s, nginx can't resolve the `api` container over Docker's embedded DNS. This is a
-> recreate-ordering race: when a deploy recreates the frontend while `api` is mid-(re)registration, Docker's
-> DNS briefly answers NXDOMAIN for `api` and nginx serves 502s until it re-resolves. The stack is hardened
-> against this — the frontend now `depends_on` the api's **healthcheck** (nginx won't boot until `api`
-> answers `/api/health`), and `nginx.conf` uses `resolver ... valid=1s` so any *later* transient miss
-> self-heals in ~1s (was 10s). If you ever still hit it, recreate the whole stack together so DNS rebuilds
-> consistently — never recreate the frontend alone:
->
-> ```bash
-> ssh $PI_HOST "cd ~/kumbara && \
->   docker compose -f oci://ghcr.io/armanckeser/kumbara-stack:v1.2.3 up -d -y --force-recreate"
-> ```
-
-The `api` container runs migrations on start (idempotent — bootstraps a fresh DB including the
+The `app` container (`dist/boot.js`) waits for Postgres, runs migrations and creates its instance secrets on start (idempotent — bootstraps a fresh DB including the
 `agent_reader` role, applies only pending on re-run) before serving. Check it:
 
 ```bash
 # Address the container directly — `docker compose logs` against an oci:// source would need the
 # -f oci://... flag repeated, and container_name is stable across every deploy.
-ssh $PI_HOST "docker logs --tail=30 kumbara-api"
+ssh $PI_HOST "docker logs --tail=30 kumbara-app"
 # look for "API listening" + "scheduled sync every N min"
 ```
 
@@ -133,7 +121,7 @@ later deploy can't accidentally run a stale local copy instead of the published 
 
 ## Cosmos
 
-Cosmos auto-discovers the stack from the labels. In the Cosmos UI, give `kumbara-frontend` a URL (e.g.
+Cosmos auto-discovers the stack from the labels. In the Cosmos UI, give `kumbara-app` a URL (e.g.
 `kumbara.example.com`) with **TLS enabled** but the route's **built-in auth OFF** — the app now
 self-gates with OIDC (see "Auth" below), and the Cosmos redirect-to-login gate broke the installed PWA.
 Direct LAN fallback: `http://<pi-lan-ip>:5182`.
@@ -197,7 +185,7 @@ the Cosmos client exists — the sequence below.
    Then re-up (from `~/kumbara`, so `.env` is picked up for interpolation):
    ```bash
    ssh $PI_HOST "cd ~/kumbara && \
-     docker compose -f oci://ghcr.io/armanckeser/kumbara-stack:v1.2.3 up -d -y"
+     docker compose -f oci://ghcr.io/armanckeser/kumbara-pi:1.2.3 up -d -y"
    ```
    (In Cosmos, editing the env + restarting the container from the UI does the same thing.) To turn auth
    back OFF, set `AUTH_ENABLED=0` and re-up.

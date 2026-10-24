@@ -153,6 +153,13 @@ export class EquityStore extends Context.Service<EquityStore>()("kumbara/equity/
       return yield* sql.withTransaction(
         Effect.gen(function* () {
           const txid = yield* currentTxid();
+          // Same guard as createGrant: an unknown account is a typed 404, not a raw FK failure.
+          if (input.account_id != null) {
+            const account = yield* sql<{ id: string }>`SELECT id FROM account WHERE id = ${input.account_id}`;
+            if (account.length === 0) {
+              return yield* new EquityAccountNotFound({ account_id: input.account_id });
+            }
+          }
           const updated = yield* sql<{ id: string }>`
             UPDATE equity_grant SET
               symbol = COALESCE(${input.symbol ?? null}, symbol),

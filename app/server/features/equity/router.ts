@@ -26,7 +26,7 @@ export const createGrantRequest = (body: unknown): Effect.Effect<HttpResult, Sql
     }),
   );
 
-/** Patch a grant's own fields (symbol / grant_date / granted_qty / note). */
+/** Patch a grant's own fields (symbol / grant_date / granted_qty / note / account_id). */
 export const patchGrantRequest = (
   id: string,
   body: unknown,
@@ -41,6 +41,8 @@ export const patchGrantRequest = (
         Effect.succeed(result(400, { error: "invalid grant patch", detail: error.message })),
       GrantNotFound: (error) =>
         Effect.succeed(result(404, { error: "grant not found", grant_id: error.grant_id })),
+      EquityAccountNotFound: (error) =>
+        Effect.succeed(result(404, { error: "account not found", account_id: error.account_id })),
     }),
   );
 

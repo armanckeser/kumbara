@@ -10,6 +10,8 @@ import type { Disposition } from "../../../domain/disposition";
 import type { LearnableFilterSpec } from "../../../domain/rule";
 import { isLearnableCondition, ruleConditionFromFilters } from "../../../domain/rule";
 import type { TransactionGroupItem } from "./group-item";
+import type { RuleQuestion } from "../../../domain/rule-question";
+import { askRuleQuestions } from "../rules/rule-question-prompt";
 
 /** A ranked chip from POST /api/triage/candidates. Mirrors the server's TriageChip (the wire shape). */
 export interface TriageChip {
@@ -132,10 +134,11 @@ export function useTriage(
       setBusy(true);
       setMessage(null);
       try {
-        const result = await apiPost<{ txid: number; past_uncategorized: PastMatch[] }>(
+        const result = await apiPost<{ txid: number; past_uncategorized: PastMatch[]; rule_questions?: RuleQuestion[] }>(
           "categorization/set-category",
           { ids, category_id: categoryId, person_id: person },
         );
+        askRuleQuestions(result.rule_questions);
         // Two follow-up prompts can apply, shown one at a time so they never stack: first the apply-to-past
         // backfill (if this merchant has past rows), then "learn this rule?" (if a learnable filter is
         // active). Selection is kept while either is pending; it clears only when neither applies.
@@ -231,7 +234,8 @@ export function useTriage(
       setBusy(true);
       setMessage(null);
       try {
-        await apiPost("transactions/disposition", { ids, disposition });
+        const written = await apiPost<{ rule_questions?: RuleQuestion[] }>("transactions/disposition", { ids, disposition });
+        askRuleQuestions(written.rule_questions);
         clearSelection();
       } catch (cause) {
         setMessage(String(cause));

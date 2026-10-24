@@ -26,13 +26,16 @@ import {
   oidcAuthMiddleware,
   revokeSession,
 } from "@hono/oidc-auth";
+import { clearPasswordSession, hasPasswordSession, passwordEnabled } from "./password";
 
 // An env var can be undefined OR the empty string (compose/.env may ship blank lines); both mean "unset".
 const readEnv = (value: string | undefined): string | undefined =>
   value !== undefined && value.length > 0 ? value : undefined;
 
-/** Master switch. Auth is fully inert unless AUTH_ENABLED=1 — dev and the fixture runtime never prompt. */
-export const authEnabled = process.env.AUTH_ENABLED === "1";
+/** OIDC sign-in. Inert unless AUTH_ENABLED=1 — dev and the fixture runtime never prompt. */
+export const oidcEnabled = process.env.AUTH_ENABLED === "1";
+/** Any sign-in at all: OIDC, or the password mode self-hosters without an OIDC provider use (password.ts). */
+export const authEnabled = oidcEnabled || passwordEnabled;
 
 // A service token for NON-browser callers (personal Claude / prod ops, R9). The browser authenticates with an
 // OIDC session cookie; the agent has no cookie and hits /api/* from wherever it runs — through the public URL,
@@ -80,7 +83,7 @@ const CALLBACK_PATH = readEnv(process.env.OIDC_REDIRECT_URI) ?? "/auth/callback"
  * carries our callback path even when only some vars are set, and so a missing var fails loudly at boot.
  */
 export const initAuth = (): MiddlewareHandler =>
-  authEnabled
+  oidcEnabled
     ? initOidcAuthMiddleware({
         OIDC_ISSUER: process.env.OIDC_ISSUER,
         OIDC_CLIENT_ID: process.env.OIDC_CLIENT_ID,
@@ -113,7 +116,7 @@ export const initAuth = (): MiddlewareHandler =>
 const forceSameSiteLax = (): MiddlewareHandler =>
   createMiddleware(async (c, next) => {
     await next();
-    if (!authEnabled) return;
+    if (!oidcEnabled) return;
     const cookies = c.res.headers.getSetCookie();
     if (cookies.length === 0) return;
     c.res.headers.delete("set-cookie");
@@ -159,7 +162,7 @@ const EXTERNAL_ORIGIN = ((): string | undefined => {
  */
 const normalizeExternalOrigin = (): MiddlewareHandler =>
   createMiddleware(async (c, next) => {
-    if (!authEnabled || EXTERNAL_ORIGIN === undefined) return next();
+    if (!oidcEnabled || EXTERNAL_ORIGIN === undefined) return next();
     const currentUrl = new URL(c.req.url);
     if (currentUrl.origin === EXTERNAL_ORIGIN) return next();
     const externalUrl = new URL(EXTERNAL_ORIGIN);
@@ -181,7 +184,7 @@ export { normalizeExternalOrigin };
  * When auth is disabled it is a pass-through so the terminal `-> /` redirect handles both routes in dev.
  */
 export const interactiveLogin = (): MiddlewareHandler =>
-  authEnabled
+  oidcEnabled
     ? oidcAuthMiddleware()
     : createMiddleware(async (_c, next) => {
         await next();
@@ -195,8 +198,9 @@ export const postLoginRedirect = (c: Context): Response => c.redirect("/");
 
 /** Clear the session (revokes the refresh token at the IdP + deletes the cookie), then back to the app. */
 export const logoutHandler = async (c: Context): Promise<Response> => {
-  if (authEnabled) await revokeSession(c);
-  return c.redirect("/");
+  if (oidcEnabled) await revokeSession(c);
+  clearPasswordSession(c);
+  return c.redirect(passwordEnabled && !oidcEnabled ? "/auth/login" : "/");
 };
 
 /**
@@ -207,6 +211,8 @@ export const logoutHandler = async (c: Context): Promise<Response> => {
 export const meHandler = async (c: Context): Promise<Response> => {
   if (!authEnabled) return c.json({ user: "dev", email: "dev@localhost", authEnabled: false });
   if (hasValidAgentToken(c)) return c.json({ user: "agent", email: "", authEnabled: true });
+  if (hasPasswordSession(c)) return c.json({ user: "owner", email: "", authEnabled: true });
+  if (!oidcEnabled) return c.json({ error: "unauthenticated" }, 401);
   const auth = await getAuth(c);
   if (auth === null) return c.json({ error: "unauthenticated" }, 401);
   return c.json({ user: auth.sub ?? "", email: auth.email ?? "", authEnabled: true });
@@ -230,6 +236,8 @@ export const apiAuthGuard = (): MiddlewareHandler =>
   createMiddleware(async (c, next) => {
     if (!authEnabled) return next();
     if (hasValidAgentToken(c)) return next();
+    if (hasPasswordSession(c)) return next();
+    if (!oidcEnabled) return c.json({ error: "unauthenticated" }, 401);
     const auth = await getAuth(c);
     if (auth === null) return c.json({ error: "unauthenticated" }, 401);
     return next();

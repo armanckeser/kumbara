@@ -116,3 +116,38 @@ export const triageCandidatesBatchRequest = (
       ),
     ),
   );
+
+/** Answer a rule question (Narrow / Replace / Varies) raised by set-category or a disposition. Bad body or a
+ *  Narrow with no condition -> 400. Returns the Electric txid. */
+export const answerRuleQuestionRequest = (
+  body: unknown,
+): Effect.Effect<HttpResult, SqlError, CategorizationStore> =>
+  Effect.gen(function* () {
+    const store = yield* CategorizationStore;
+    return result(200, yield* store.answerRuleQuestion(body));
+  }).pipe(
+    Effect.catchTag("SchemaError", (error) =>
+      Effect.succeed(result(400, { error: "invalid rule-question answer", detail: error.message })),
+    ),
+    Effect.catchTag("NarrowRuleHasNoCondition", (error) =>
+      Effect.succeed(
+        result(400, {
+          error: "a narrowed rule needs a condition (text, amount, account or direction)",
+          merchant_key: error.merchant_key,
+        }),
+      ),
+    ),
+  );
+
+/** Switch a merchant between one category (`single`) and `varies`. Bad body -> 400. */
+export const setMerchantCategoryPolicyRequest = (
+  body: unknown,
+): Effect.Effect<HttpResult, SqlError, CategorizationStore> =>
+  Effect.gen(function* () {
+    const store = yield* CategorizationStore;
+    return result(200, yield* store.setMerchantCategoryPolicy(body));
+  }).pipe(
+    Effect.catchTag("SchemaError", (error) =>
+      Effect.succeed(result(400, { error: "invalid merchant category policy request", detail: error.message })),
+    ),
+  );

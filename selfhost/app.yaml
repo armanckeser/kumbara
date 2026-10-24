@@ -1,0 +1,32 @@
+# Store listing for Kumbara. armanckeser/selfhost-apps reads this file from the latest release and
+# generates every store package from it (Cosmos, Umbrel, CasaOS/ZimaOS, Runtipi, Unraid, Portainer).
+# Paths are relative to the repo root.
+
+id: kumbara
+name: Kumbara
+stack: agent-first
+auth: builtin
+tagline: Budgeting that files your bank feed for you and opens instantly on your phone.
+description: |
+  Kumbara pulls your bank transactions through SimpleFIN and files what it recognizes. For the rest it asks once per merchant, and one answer covers every charge from that merchant. Transfers between your own accounts are paired, so they never count as spending.
+
+  The budget is Needs, Wants and Savings, with what is left per day. It also tracks stock grants, investments, and paychecks from gross to net.
+
+  Kumbara is a phone app you install from the browser. Every screen loads from data already on your phone, so it opens instantly. Connect your bank from the app with a SimpleFIN setup token (SimpleFIN costs about $15 a year, paid to them). Single household.
+category: finance
+developer: Armanc Keser
+website: https://github.com/armanckeser/kumbara
+repo: https://github.com/armanckeser/kumbara
+support: https://github.com/armanckeser/kumbara/issues
+license: AGPL-3.0-or-later
+icon: app/public/icons/icon-512.png
+screenshots:
+  - img/budget.png
+  - img/investments.png
+  - img/paychecks.png
+  - img/subscriptions.png
+image: ghcr.io/armanckeser/kumbara
+compose: app/docker-compose.selfhost.yml
+port: 8080
+host_port: 5182
+env: []

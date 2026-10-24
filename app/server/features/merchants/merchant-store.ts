@@ -225,6 +225,7 @@ export const factsOf = (row: {
   holder: null,
   kbDefaultCategoryId: null,
   merchantKind: null,
+  categoryPolicy: null,
   bridgePayeeKey: row.bridge_payee !== null ? (row.merchant_key as typeof MerchantKey.Type) : null,
   matchText: row.imported_payee ?? row.description_raw ?? row.merchant_key,
   descriptionRaw: row.description_raw,

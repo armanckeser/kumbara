@@ -62,7 +62,7 @@ export async function demoPost<T = unknown>(path: string, body: unknown): Promis
       return demoCandidates(body) as T;
     case "categorization/set-category":
       await applySetCategory(body);
-      return { txid: 0, past_uncategorized: [] } as T;
+      return { txid: 0, past_uncategorized: [], rule_questions: [] } as T;
     case "categorization/clear-category":
       await applyClearCategory(body);
       return { txid: 0 } as T;

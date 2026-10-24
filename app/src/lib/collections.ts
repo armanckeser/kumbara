@@ -166,6 +166,7 @@ export type Merchant = {
   canonical_name: string;
   default_category_id: string | null;
   kind: "merchant" | "payment" | "transfer" | "p2p";
+  category_policy: "single" | "varies";
   transfer_override: "confirmed_spending" | null;
   mcc: number | null;
   logo: string | null;

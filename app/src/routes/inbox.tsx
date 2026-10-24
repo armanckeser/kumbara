@@ -22,6 +22,8 @@ import {
   type PastCategoryMatch,
 } from "../features/transactions/transaction-detail-sheet";
 import type { Disposition } from "../../domain/disposition";
+import type { RuleQuestion } from "../../domain/rule-question";
+import { askRuleQuestions } from "../features/rules/rule-question-prompt";
 
 export const Route = createFileRoute("/inbox")({ component: InboxPage });
 
@@ -166,11 +168,11 @@ function InboxPage() {
   // link. transactionCollection is read-only, so Electric re-streams the resolved rows out of the anomaly set.
   const decide = (question: InboxQuestion, disposition: Disposition) =>
     commit(question, () =>
-      apiPost<{ txid: number }>("transactions/disposition", {
+      apiPost<{ txid: number; rule_questions?: RuleQuestion[] }>("transactions/disposition", {
         ids: rowIdsOf(question),
         disposition,
         link_id: question.representative.suggestion?.linkId ?? null,
-      }),
+      }).then((written) => askRuleQuestions(written.rule_questions)),
     );
 
   // One-tap categorize from an on-card chip (Pitch 19): the same set-category write the sheet uses, for
@@ -181,11 +183,11 @@ function InboxPage() {
     commit(
       question,
       () =>
-        apiPost<{ txid: number }>("categorization/set-category", {
+        apiPost<{ txid: number; rule_questions?: RuleQuestion[] }>("categorization/set-category", {
           ids,
           category_id: categoryId,
           person_id: null,
-        }),
+        }).then((written) => askRuleQuestions(written.rule_questions)),
       {
         label: `${question.representative.payee} → ${categoryName}`,
         run: () => apiPost<{ txid: number }>("categorization/clear-category", { ids }),
@@ -226,10 +228,11 @@ function InboxPage() {
       categories,
       setCategory: async (categoryId) => {
         if (detail === null) return [];
-        const result = await apiPost<{ past_uncategorized: PastCategoryMatch[] }>(
+        const result = await apiPost<{ past_uncategorized: PastCategoryMatch[]; rule_questions?: RuleQuestion[] }>(
           "categorization/set-category",
           { ids: rowIdsOf(detail), category_id: categoryId, person_id: null },
         );
+        askRuleQuestions(result.rule_questions);
         return result.past_uncategorized;
       },
       applyToPast: async (merchantKeys, categoryId) => {

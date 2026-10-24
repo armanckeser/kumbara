@@ -8,7 +8,9 @@
 //     pairing is a distinct "is this that?" with its own evidence;
 //   - uncategorized-merchant rows group by merchant_key — one card, one answer, the whole cohort
 //     resolves (the disposition/category write stamps every row's ids);
-//   - a row with no merchant_key has nothing to group under, so it stays its own card.
+//   - a row with no merchant_key has nothing to group under, so it stays its own card;
+//   - so does a row of a `varies` merchant (a card portal booking rent and dining alike): one answer for
+//     the cohort would stamp the rent with the dinner's category.
 // Pure and view-side only (R2): it reorders/aggregates already-decided rows, it decides nothing.
 
 import type { SuggestionCounterparty, TransactionGroupItem } from "./group-item";
@@ -46,7 +48,7 @@ export const inboxQuestions = (
         ? `paycheck:${item.id}`
         : item.suggestion !== null
           ? `link:${item.id}`
-          : item.merchant_key !== null
+          : item.merchant_key !== null && item.categoryPolicy === "single"
             ? `merchant:${item.merchant_key}`
             : `row:${item.id}`;
     const existing = byKey.get(key);

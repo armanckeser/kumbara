@@ -69,6 +69,8 @@ import {
   serializeViewStateToUrl,
   type ViewState,
 } from "../components/views/data-table";
+import type { RuleQuestion } from "../../domain/rule-question";
+import { askRuleQuestions } from "../features/rules/rule-question-prompt";
 
 export const Route = createFileRoute("/transactions")({
   component: TransactionsPage,
@@ -324,10 +326,11 @@ function TransactionsPage() {
       categories,
       setCategory: async (categoryId) => {
         if (detail === null) return [];
-        const result = await apiPost<{ past_uncategorized: PastCategoryMatch[] }>(
+        const result = await apiPost<{ past_uncategorized: PastCategoryMatch[]; rule_questions?: RuleQuestion[] }>(
           "categorization/set-category",
           { ids: rowIdsOf(detail), category_id: categoryId, person_id: null },
         );
+        askRuleQuestions(result.rule_questions);
         return result.past_uncategorized;
       },
       applyToPast: async (merchantKeys, categoryId) => {

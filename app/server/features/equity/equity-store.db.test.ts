@@ -80,5 +80,26 @@ if (TEST_DATABASE_URL === undefined) {
         }),
       ),
     );
+
+    it.effect("patching a grant onto an unknown account is a typed not-found, not a foreign-key failure", () =>
+      withRollback(
+        Effect.gen(function* () {
+          // Regression: createGrant checked the account, but patchGrant wrote account_id straight into the
+          // UPDATE, so a stale id surfaced as an untyped SQL error (a 500) instead of the create path's 404.
+          const store = yield* EquityStore;
+          const created = yield* store.createGrant({
+            symbol: "ACME",
+            grant_date: "2026-01-15",
+            granted_qty: 100,
+            tranches: [{ vest_date: "2027-01-15", qty: 100 }],
+          });
+          return yield* Effect.flip(store.patchGrant(created.grant_id, { account_id: "00000000-0000-4000-8000-000000000000" }));
+        }),
+      ).pipe(
+        Effect.map((error) => {
+          assert.strictEqual(error._tag, "EquityAccountNotFound");
+        }),
+      ),
+    );
   });
 }

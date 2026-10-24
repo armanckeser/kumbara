@@ -89,10 +89,12 @@ import {
   setExpectedIncomeRequest,
 } from "./features/budget/router";
 import {
+  answerRuleQuestionRequest,
   applyToPastRequest,
   clearCategoryRequest,
   learnRuleRequest,
   setCategoryRequest,
+  setMerchantCategoryPolicyRequest,
   sweepMonthRequest,
   triageCandidatesBatchRequest,
   triageCandidatesRequest,
@@ -143,6 +145,7 @@ import {
   detachPaycheckRequest,
 } from "./features/paychecks/router";
 import {
+  editCategorizeRuleRequest,
   explainTransactionRequest,
   removeRuleRequest,
   rulesOverviewRequest,
@@ -157,8 +160,10 @@ import {
   logoutHandler,
   meHandler,
   normalizeExternalOrigin,
+  oidcEnabled,
   postLoginRedirect,
 } from "./features/auth/auth";
+import { passwordEnabled, passwordLogin, passwordLoginPage } from "./features/auth/password";
 
 const ELECTRIC_URL = process.env.ELECTRIC_URL ?? "http://localhost:3000";
 const PORT = Number(process.env.PORT ?? 4000);
@@ -273,6 +278,11 @@ export function buildApp<ER>(runtime: ManagedRuntime.ManagedRuntime<AppServices,
   // Auth routes are OPEN (they ARE the login flow). /auth/login and /auth/callback both run the interactive
   // OIDC middleware: no session on /auth/login -> 302 to Cosmos; the IdP returns to /auth/callback -> code
   // exchange + session cookie + redirect to the app. Registered BEFORE the /api/* guard.
+  // Password mode (password.ts) answers /auth/login itself when OIDC is off: a form, then a signed cookie.
+  if (passwordEnabled && !oidcEnabled) {
+    app.get("/auth/login", passwordLoginPage);
+    app.post("/auth/login", passwordLogin);
+  }
   app.get("/auth/login", interactiveLogin(), postLoginRedirect);
   app.get("/auth/callback", interactiveLogin(), postLoginRedirect);
   app.get("/auth/logout", logoutHandler);
@@ -651,6 +661,19 @@ export function buildApp<ER>(runtime: ManagedRuntime.ManagedRuntime<AppServices,
     respond(context, runResult(runtime, learnRuleRequest(await context.req.json()))),
   );
 
+  // Answer a rule question — set-category / disposition return one when an answer contradicts what a merchant
+  // meant, or the merchant varies. Body: { merchant_key, category_id, person_id, answer: { _tag: "Narrow",
+  // account_id, direction, amount_min, amount_max, text_match } | { _tag: "Replace" } | { _tag: "Varies" } }.
+  app.post("/api/categorization/answer-rule-question", async (context) =>
+    respond(context, runResult(runtime, answerRuleQuestionRequest(await context.req.json()))),
+  );
+
+  // Switch a merchant between one category ("single") and "varies" (only narrowed rules apply). Body:
+  // { merchant_key, policy: "single" | "varies" }.
+  app.post("/api/categorization/merchant-category-policy", async (context) =>
+    respond(context, runResult(runtime, setMerchantCategoryPolicyRequest(await context.req.json()))),
+  );
+
   // ---------- recurring (the Subscriptions page) ----------
 
   // Re-scan the whole ledger for recurring series and persist the verdicts (the page's "Rescan"; also
@@ -813,6 +836,12 @@ export function buildApp<ER>(runtime: ManagedRuntime.ManagedRuntime<AppServices,
     ),
   );
 
+  // Edit a categorize rule in place (its narrowing and category; applies to new rows). Body: { account_id,
+  // direction, amount_min, amount_max, text_match, category_id }.
+  app.post("/api/rules/categorize/:id", async (context) =>
+    respond(context, runResult(runtime, editCategorizeRuleRequest(context.req.param("id"), await context.req.json()))),
+  );
+
   // Delete one rule AND undo what it did (uncategorize what it categorized, bring back what it kept out).
   app.delete("/api/rules/:kind/:id", async (context) =>
     respond(context, runResult(runtime, removeRuleRequest(context.req.param("kind"), context.req.param("id")))),
@@ -863,7 +892,9 @@ export function buildApp<ER>(runtime: ManagedRuntime.ManagedRuntime<AppServices,
   if (SERVE_WEB) {
     const WEB_ROOT = process.env.WEB_ROOT ?? "../dist";
     app.use("/assets/*", serveStatic({ root: WEB_ROOT }));
-    app.use("/favicon.ico", serveStatic({ root: WEB_ROOT }));
+    // Every other real file in the build (sw.js, manifest.json, icons/) is served as itself; the PWA
+    // breaks if the service worker URL answers with index.html.
+    app.use("*", serveStatic({ root: WEB_ROOT }));
     // SPA fallback: any non-API GET that isn't a real asset returns index.html so client routing (TanStack
     // Router) handles the path on the browser. API 404s still return JSON (they never reach here).
     app.get("*", serveStatic({ root: WEB_ROOT, path: "index.html" }));

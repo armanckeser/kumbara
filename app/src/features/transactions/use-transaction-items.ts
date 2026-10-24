@@ -124,14 +124,19 @@ export function useTransactionItems(): TransactionItems {
     // into the existing joins pass, no second round-trip. null when a category carries no icon.
     const categoryIconById = new Map(categories.map((category) => [category.id, category.icon]));
 
+    // A `varies` merchant has no likely category — that is the point of it.
+    const variesMerchantKeys = new Set(
+      merchants.filter((merchant) => merchant.category_policy === "varies").map((merchant) => merchant.merchant_key),
+    );
     const likelyCategoryByMerchantKey = new Map<string, string>();
     for (const merchant of merchants) {
-      if (merchant.default_category_id === null) continue;
+      if (merchant.default_category_id === null || variesMerchantKeys.has(merchant.merchant_key)) continue;
       const name = categoryNameById.get(merchant.default_category_id);
       if (name !== undefined) likelyCategoryByMerchantKey.set(merchant.merchant_key, name);
     }
     for (const memory of memories) {
       if (memory.person_id !== null) continue; // household-level memory drives the ungrouped inbox
+      if (variesMerchantKeys.has(memory.merchant_key)) continue;
       const name = categoryNameById.get(memory.category_id);
       if (name !== undefined) likelyCategoryByMerchantKey.set(memory.merchant_key, name);
     }
@@ -150,6 +155,7 @@ export function useTransactionItems(): TransactionItems {
       txnById: new Map(decodedRows.map((row) => [row.id, row])),
       likelyCategoryByMerchantKey,
       paycheckByTxnId,
+      variesMerchantKeys,
     };
   }, [accounts, categories, merchants, memories, decodedLinks, decodedRows, rows, paycheckPeriods]);
 

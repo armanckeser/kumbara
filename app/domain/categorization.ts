@@ -13,7 +13,7 @@
 import { Schema } from "effect";
 import { CategoryId, PersonId } from "./common";
 import type { MerchantKey } from "./common";
-import type { MerchantKind } from "./normalization";
+import type { MerchantCategoryPolicy, MerchantKind } from "./normalization";
 import type { RuleRow } from "./rule";
 
 // ---------- providers + the confidence they carry (§4.2) ----------
@@ -121,6 +121,9 @@ export interface CategorizationFacts {
   readonly kbDefaultCategoryId: typeof CategoryId.Type | null;
   /** merchant.kind. payment/transfer route to link detection and SKIP categorization (Appendix B.3). */
   readonly merchantKind: MerchantKind | null;
+  /** merchant.category_policy. A `varies` merchant (one payee, many kinds of purchase) is ranked like a P2P
+   *  rail: only rules and the row's own words count, never a merchant-wide signal. null = no merchant row. */
+  readonly categoryPolicy: MerchantCategoryPolicy | null;
   /** The normalized bridge-payee key (provider #4). Often equals merchantKey; separate so a canonical
    *  bridge payee can resolve even when the description-derived key did not. */
   readonly bridgePayeeKey: MerchantKey | null;
@@ -199,7 +202,9 @@ export const rankCandidates = (
   // explicit rule (which can narrow by amount/account/memo text) and the memo's own words (keyword). Every
   // merchant-level signal (learned memory, the KB default, the bridge payee, history) would turn "the last
   // Venmo was dinner" into "every Venmo is dinner", and is skipped.
-  const railOnly = facts.merchantKind === "p2p";
+  // A `varies` merchant is the same problem one level up: a card issuer's portal books rent AND dining under
+  // one payee, so its merchant-level signals would make "the last one was dinner" into "every one is dinner".
+  const railOnly = facts.merchantKind === "p2p" || facts.categoryPolicy === "varies";
 
   const confidenceOf = context.options.providerConfidence;
   const historical = facts.merchantKey === null || railOnly

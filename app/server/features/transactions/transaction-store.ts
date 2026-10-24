@@ -15,6 +15,7 @@ import { Context, Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { AccountId, CategoryId, Money, PersonId, TransactionId } from "../../../domain/common";
 import { Disposition, deriveExclusion } from "../../../domain/disposition";
+import type { RuleQuestion } from "../../../domain/rule-question";
 import { CategorizationStore } from "../categorization/categorization-store";
 import { LinksStore } from "../links/links-store";
 import { importHash } from "../ingestion/import-hash";
@@ -132,11 +133,12 @@ export class TransactionStore extends Context.Service<TransactionStore>()(
           Effect.gen(function* () {
             const txid = yield* currentTxid();
             const linkId = input.link_id ?? null;
+            let ruleQuestions: ReadonlyArray<RuleQuestion> = [];
 
             switch (input.disposition._tag) {
               case "Spending":
               case "Income": {
-                yield* categorization.stampCategory(
+                ruleQuestions = yield* categorization.stampCategory(
                   input.ids,
                   input.disposition.category_id,
                   input.person_id ?? null,
@@ -169,7 +171,9 @@ export class TransactionStore extends Context.Service<TransactionStore>()(
                 break;
               }
             }
-            return { txid } satisfies WriteResult;
+            // A category answer that contradicted what a merchant meant comes back as a question (domain/
+            // rule-question.ts) instead of silently re-learning the merchant.
+            return { txid, rule_questions: ruleQuestions };
           }),
         );
       });

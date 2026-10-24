@@ -1,10 +1,10 @@
 // Pure tests for summarizeTransactions (Issue #19 — the filtered-transactions summary graph). No DB: this
-// is a pure function over { amountValue, date } rows.
+// is a pure function over { amountValue, date, exclusion, bucket } rows.
 //
 // Regressions guarded (named before writing, per testing-discipline):
-//   1. Spend vs income split by SIGN: negative amounts are spend (reported positive), positive are income;
-//      net is income minus spend. A summary that summed raw signed amounts into "total spend" would report
-//      the wrong headline (e.g. a paycheck cancelling out real spending).
+//   1. Spend vs income split by the row's BUCKET: spend-bucket rows are spend (reported positive), income-
+//      bucket rows are income; net is income minus spend. A summary that summed raw signed amounts into
+//      "total spend" would report the wrong headline (e.g. a paycheck cancelling out real spending).
 //   2. averageSpend divides by the count of SPENDING rows only — income rows must not dilute the average.
 //   3. The spend-over-time line buckets by an auto-picked granularity from the date span (day / week /
 //      month) and SUMS spend within each bucket — a per-transaction line would be unreadable over a year,
@@ -12,20 +12,32 @@
 //   4. Income rows never appear on the spend line (the chart is spend, not net flow).
 //   5. Empty set yields all-zero stats and no points without throwing (boundary).
 //   6. An all-income set reports zero spend and averageSpend 0, not a divide-by-zero (negative/boundary).
+//   7. Off-budget rows (an excluded transfer leg, a transfer-bucket category) land in NO money figure. The
+//      ledger lists both legs of a card payment / account transfer; counting them by sign reported the same
+//      dollar as spend AND income, inflating "Total spent" several-fold over an all-transactions view.
+//   8. Savings-bucket rows are neither spend nor income (saving isn't spending — same rule as the board).
+//   9. A refund (a positive row in a spend bucket) nets against spend; it is not income, and it does not
+//      count as a spending row in the average's denominator.
 //
 // Expected values are hardcoded literals computed by hand from each fixture, never summarizeTransactions(x).
 
 import { describe, expect, it } from "vitest";
 import { summarizeTransactions, type SummarizableTransaction } from "./transaction-summary";
 
-const row = (amountValue: number, date: string): SummarizableTransaction => ({ amountValue, date });
+/** A spend row by default (included, wants bucket); pass a bucket / exclusion to place it elsewhere. */
+const row = (
+  amountValue: number,
+  date: string,
+  bucket: SummarizableTransaction["bucket"] = "wants",
+  exclusion: SummarizableTransaction["exclusion"] = "included",
+): SummarizableTransaction => ({ amountValue, date, bucket, exclusion });
 
 describe("summarizeTransactions", () => {
   it("splits spend from income by sign and reports net as income minus spend", () => {
     const transactions = [
       row(-40, "2026-07-01"), // spend 40
       row(-10.5, "2026-07-02"), // spend 10.50
-      row(2000, "2026-07-03"), // income (paycheck)
+      row(2000, "2026-07-03", "income"), // income (paycheck)
       row(-49.5, "2026-07-04"), // spend 49.50
     ];
 
@@ -42,7 +54,7 @@ describe("summarizeTransactions", () => {
     const transactions = [
       row(-30, "2026-07-01"), // spend
       row(-90, "2026-07-02"), // spend
-      row(5000, "2026-07-03"), // income — must NOT count toward the average
+      row(5000, "2026-07-03", "income"), // income — must NOT count toward the average
     ];
 
     const summary = summarizeTransactions(transactions);
@@ -104,7 +116,7 @@ describe("summarizeTransactions", () => {
   it("keeps income off the spend line entirely", () => {
     const transactions = [
       row(-25, "2026-07-01"),
-      row(3000, "2026-07-01"), // income on the same day — must not appear on the line
+      row(3000, "2026-07-01", "income"), // income on the same day — must not appear on the line
     ];
 
     const summary = summarizeTransactions(transactions);
@@ -128,7 +140,7 @@ describe("summarizeTransactions", () => {
   });
 
   it("reports zero spend and a zero average when the set is all income", () => {
-    const transactions = [row(1200, "2026-07-01"), row(800, "2026-07-15")];
+    const transactions = [row(1200, "2026-07-01", "income"), row(800, "2026-07-15", "income")];
 
     const summary = summarizeTransactions(transactions);
 
@@ -137,6 +149,69 @@ describe("summarizeTransactions", () => {
     expect(summary.averageSpend).toBe(0);
     expect(summary.points).toEqual([]);
     expect(summary.net).toBe(2000);
+  });
+
+  it("keeps off-budget rows (excluded transfers, transfer-bucket categories) out of every money figure", () => {
+    const transactions = [
+      row(-60, "2026-07-01", "needs"), // real spend
+      row(1000, "2026-07-02", "income"), // real income
+      row(-500, "2026-07-03", null, "excluded"), // card payment leaving checking
+      row(500, "2026-07-03", null, "excluded"), // the same payment landing on the card
+      row(-300, "2026-07-04", "transfer"), // transfer-bucket category
+    ];
+
+    const summary = summarizeTransactions(transactions);
+
+    // Only the $60 spend and the $1000 income count. By sign it would read spend 860 / income 1500.
+    expect(summary.count).toBe(5);
+    expect(summary.totalSpend).toBe(60);
+    expect(summary.totalIncome).toBe(1000);
+    expect(summary.net).toBe(940);
+    expect(summary.averageSpend).toBe(60);
+    expect(summary.points).toEqual([{ date: "2026-07-01", label: "Jul 1", spend: 60 }]);
+  });
+
+  it("treats savings-bucket rows as neither spend nor income", () => {
+    const transactions = [
+      row(-80, "2026-07-01", "wants"),
+      row(-400, "2026-07-02", "savings"), // a brokerage contribution
+    ];
+
+    const summary = summarizeTransactions(transactions);
+
+    expect(summary.totalSpend).toBe(80);
+    expect(summary.totalIncome).toBe(0);
+    expect(summary.net).toBe(-80);
+    expect(summary.points).toEqual([{ date: "2026-07-01", label: "Jul 1", spend: 80 }]);
+  });
+
+  it("nets a refund against spend instead of counting it as income", () => {
+    const transactions = [
+      row(-100, "2026-07-01", "wants"),
+      row(-50, "2026-07-01", "needs"),
+      row(30, "2026-07-01", "wants"), // a standalone refund
+    ];
+
+    const summary = summarizeTransactions(transactions);
+
+    // Spend = 100 + 50 - 30 = 120; no income; average = 120 over the 2 purchases (the refund is not a row).
+    expect(summary.totalSpend).toBe(120);
+    expect(summary.totalIncome).toBe(0);
+    expect(summary.net).toBe(-120);
+    expect(summary.averageSpend).toBe(60);
+    expect(summary.points).toEqual([{ date: "2026-07-01", label: "Jul 1", spend: 120 }]);
+  });
+
+  it("counts uncategorized and taxes rows as spend", () => {
+    const transactions = [
+      row(-20, "2026-07-01", null), // uncategorized, still a real charge
+      row(-70, "2026-07-01", "taxes"), // tax paid from an account
+    ];
+
+    const summary = summarizeTransactions(transactions);
+
+    expect(summary.totalSpend).toBe(90);
+    expect(summary.averageSpend).toBe(45);
   });
 
   it("uses the earliest and latest dates for the range regardless of input order", () => {

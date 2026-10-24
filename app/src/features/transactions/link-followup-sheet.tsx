@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { apiPost } from "../../lib/api";
+import type { RuleQuestion } from "../../../domain/rule-question";
+import { askRuleQuestions } from "../rules/rule-question-prompt";
 import { accountCollection, type Account, type Category } from "../../lib/collections";
 import { CategoryPicker } from "./category-picker";
 
@@ -241,7 +243,13 @@ function FollowupBody({
 
   // Escape 1: it's actually ordinary spending/income — categorize the row (leaves the anomaly gate).
   const categorize = (categoryId: string) =>
-    run(() => apiPost("categorization/set-category", { ids: [target.txnId], category_id: categoryId, person_id: null }));
+    run(() =>
+      apiPost<{ rule_questions?: RuleQuestion[] }>("categorization/set-category", {
+        ids: [target.txnId],
+        category_id: categoryId,
+        person_id: null,
+      }).then((written) => askRuleQuestions(written.rule_questions)),
+    );
 
   // Escape 2: external / my own money — keep it out and remember the merchant so it stops nagging.
   const keepOutExternal = () =>

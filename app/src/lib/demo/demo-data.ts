@@ -160,6 +160,7 @@ export function demoSeed(): Record<string, readonly Record<string, unknown>[]> {
     canonical_name: name,
     default_category_id: defaultCategory,
     kind,
+    category_policy: "single",
     transfer_override: null,
     mcc: null,
     logo: null,

@@ -44,9 +44,11 @@ import {
   type RuleFacts,
 } from "../../../domain/rule";
 import { AccountId, Money } from "../../../domain/common";
+import { MerchantCategoryPolicy } from "../../../domain/normalization";
+import { suggestNarrowings, type QuestionRow, type RuleQuestion } from "../../../domain/rule-question";
 import { loadSeedAssets } from "../normalization/seed-loader";
 import { LinksStore, LinksStoreLayer } from "../links/links-store";
-import { RuleHasNoIdentity } from "./errors";
+import { NarrowRuleHasNoCondition, RuleHasNoIdentity } from "./errors";
 
 /** A write result carries the txid Electric will echo, so the optimistic client mutation settles. */
 export interface WriteResult {
@@ -73,11 +75,49 @@ export interface PastMatch {
   readonly count: number;
 }
 
-/** set-category result: the txid + the past-row counts per merchant touched (may be empty). */
+/** set-category result: the txid + the past-row counts per merchant LEARNED (may be empty) + the questions
+ *  raised for merchants whose answer contradicted what they meant before (learned nothing; see
+ *  domain/rule-question.ts). */
 export interface SetCategoryResult {
   readonly txid: number;
   readonly past_uncategorized: ReadonlyArray<PastMatch>;
+  readonly rule_questions: ReadonlyArray<RuleQuestion>;
 }
+
+/** The user's answer to a RuleQuestion:
+ *   - Narrow: learn a rule for this merchant UNDER a condition (text / amount / account / direction), next to
+ *     whatever the merchant already means. At least one condition is required.
+ *   - Replace: the merchant changed meaning — every one of its transactions is this category from now on.
+ *   - Varies: the merchant has no single meaning — stop learning a merchant-wide category for it (its
+ *     learned category is forgotten and its merchant-wide rule paused); only narrowed rules apply. */
+export class NarrowAnswer extends Schema.TaggedClass<NarrowAnswer>("kumbara/RuleQuestionAnswer/Narrow")("Narrow", {
+  account_id: Schema.NullOr(AccountId),
+  direction: RuleDirection,
+  amount_min: Schema.NullOr(Money),
+  amount_max: Schema.NullOr(Money),
+  text_match: Schema.NullOr(Schema.NonEmptyString),
+}) {}
+export class ReplaceAnswer extends Schema.TaggedClass<ReplaceAnswer>("kumbara/RuleQuestionAnswer/Replace")(
+  "Replace",
+  {},
+) {}
+export class VariesAnswer extends Schema.TaggedClass<VariesAnswer>("kumbara/RuleQuestionAnswer/Varies")("Varies", {}) {}
+export const RuleQuestionAnswer = Schema.Union([NarrowAnswer, ReplaceAnswer, VariesAnswer]);
+
+export class AnswerRuleQuestion extends Schema.Class<AnswerRuleQuestion>("kumbara/categorization/AnswerRuleQuestion")({
+  merchant_key: MerchantKey,
+  category_id: CategoryId,
+  person_id: Schema.NullOr(PersonId),
+  answer: RuleQuestionAnswer,
+}) {}
+
+/** Set whether a merchant means one category or varies (the Rules page's switch). */
+export class SetMerchantCategoryPolicy extends Schema.Class<SetMerchantCategoryPolicy>(
+  "kumbara/categorization/SetMerchantCategoryPolicy",
+)({
+  merchant_key: MerchantKey,
+  policy: MerchantCategoryPolicy,
+}) {}
 
 /** The request to backfill past rows of one or more merchants with a category (the confirmed second step). */
 export class ApplyToPast extends Schema.Class<ApplyToPast>("kumbara/categorization/ApplyToPast")({
@@ -173,6 +213,18 @@ const decodeLearnRule = Schema.decodeUnknownEffect(LearnRule);
 const decodeTriageCandidates = Schema.decodeUnknownEffect(TriageCandidates);
 const decodeTriageCandidatesBatch = Schema.decodeUnknownEffect(TriageCandidatesBatch);
 const decodeSweepMonth = Schema.decodeUnknownEffect(SweepMonth);
+const decodeAnswerRuleQuestion = Schema.decodeUnknownEffect(AnswerRuleQuestion);
+const decodeSetMerchantCategoryPolicy = Schema.decodeUnknownEffect(SetMerchantCategoryPolicy);
+const decodeQuestionRows = Schema.decodeUnknownEffect(
+  Schema.Array(
+    Schema.Struct({
+      merchantKey: Schema.NullOr(MerchantKey),
+      accountId: AccountId,
+      amount: Money,
+      matchText: Schema.NullOr(Schema.String),
+    }),
+  ),
+);
 
 /** [start, end) ISO instants of a "YYYY-MM" month — the same window the budget rollup reads. */
 const monthBounds = (month: string): { start: string; end: string } => {
@@ -195,6 +247,7 @@ interface FactsRow {
   readonly description_raw: string;
   readonly kb_default_category_id: string | null;
   readonly merchant_kind: string | null;
+  readonly category_policy: string | null;
 }
 
 export class CategorizationStore extends Context.Service<CategorizationStore>()(
@@ -274,22 +327,167 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
         `;
       });
 
+      /** The ACTIVE rules, decoded with the shared RuleRow schema (amounts as NUMERIC decimal strings). */
+      const loadActiveRules = Effect.fn("CategorizationStore.loadActiveRules")(function* () {
+        const ruleRaw = yield* sql<Record<string, unknown>>`
+          SELECT
+            id::text AS id,
+            merchant_key,
+            account_id::text AS account_id,
+            direction,
+            amount_min::text AS amount_min,
+            amount_max::text AS amount_max,
+            text_match,
+            action_kind,
+            category_id::text AS category_id,
+            source,
+            status,
+            created_at::text AS created_at,
+            updated_at::text AS updated_at
+          FROM rule WHERE status = 'active'
+        `;
+        return yield* decodeRuleRows(ruleRaw);
+      });
+
+      /** Rule-evaluation facts for one merchant's rows: the answered `ids`, or — excluding them — its other
+       *  rows in one category / in any category but one. Newest first and capped: a question needs examples,
+       *  not the whole history. */
+      const loadQuestionRows = Effect.fn("CategorizationStore.loadQuestionRows")(function* (
+        merchantKey: string,
+        ids: ReadonlyArray<string>,
+        scope: "answered" | { readonly in: string } | { readonly notIn: string },
+      ) {
+        const which =
+          scope === "answered"
+            ? sql.in("t.id", ids)
+            : "in" in scope
+              ? sql`NOT (${sql.in("t.id", ids)}) AND t.category_id = ${scope.in}`
+              : sql`NOT (${sql.in("t.id", ids)}) AND t.category_id IS NOT NULL AND t.category_id <> ${scope.notIn}`;
+        const raw = yield* sql<Record<string, unknown>>`
+          SELECT t.merchant_key AS "merchantKey", t.account_id::text AS "accountId", t.amount::text AS amount,
+                 COALESCE(t.imported_payee, t.description_raw) AS "matchText"
+          FROM transaction t
+          WHERE t.merchant_key = ${merchantKey} AND t.status <> 'void' AND ${which}
+          ORDER BY COALESCE(t.posted_at, t.transacted_at, t.first_seen_at) DESC
+          LIMIT 500
+        `;
+        const rows: ReadonlyArray<QuestionRow> = yield* decodeQuestionRows(raw);
+        return rows;
+      });
+
       /**
-       * The distinct merchant_keys among `ids` that one answer may LEARN from (memory, a bare-merchant rule,
-       * the "apply to N past" offer). A P2P rail (Venmo/Zelle/Cash App) is excluded: the rail names how money
-       * moved, not what it bought, so "this Venmo was dinner" must not become "every Venmo is dinner". The row
-       * itself is still categorized; only the generalization is skipped. Runs in the caller's scope.
+       * What a merchant MEANS right now, before an answer: the holder's learned category, else its active
+       * merchant-wide rule, else the category most of its past rows were given by a person, an agent or a
+       * rule. The auto-categorizer's guesses don't count — correcting a KB guess is not a contradiction.
+       * Excludes the rows being answered. null = no meaning yet (a first answer simply teaches it).
        */
-      const learnableMerchantKeys = Effect.fn("CategorizationStore.learnableMerchantKeys")(function* (
+      const currentMeaning = Effect.fn("CategorizationStore.currentMeaning")(function* (
+        merchantKey: string,
+        personId: string | null,
         ids: ReadonlyArray<string>,
       ) {
-        return yield* sql<{ merchant_key: string }>`
-          SELECT DISTINCT t.merchant_key FROM transaction t
+        const memory = yield* sql<{ category_id: string }>`
+          SELECT category_id::text AS category_id FROM merchant_memory
+          WHERE merchant_key = ${merchantKey} AND COALESCE(person_id::text, '') = ${personId ?? ""}
+        `;
+        if (memory.length > 0) return memory[0].category_id;
+        const bare = yield* sql<{ category_id: string }>`
+          SELECT category_id::text AS category_id FROM rule
+          WHERE merchant_key = ${merchantKey} AND action_kind = 'categorize' AND status = 'active'
+            AND account_id IS NULL AND direction = 'either' AND amount_min IS NULL AND amount_max IS NULL
+            AND text_match IS NULL
+        `;
+        if (bare.length > 0) return bare[0].category_id;
+        const history = yield* sql<{ category_id: string }>`
+          SELECT category_id::text AS category_id FROM transaction
+          WHERE merchant_key = ${merchantKey} AND category_id IS NOT NULL AND status <> 'void'
+            AND categorized_by IN ('user', 'agent', 'rule') AND NOT (${sql.in("id", ids)})
+          GROUP BY category_id ORDER BY COUNT(*) DESC, category_id LIMIT 1
+        `;
+        return history.length > 0 ? history[0].category_id : null;
+      });
+
+      /**
+       * LEARN from one answer, per merchant among `ids`, without ever silently overwriting what a merchant
+       * already means (the old "last answer wins" made one dining row flip a card portal's rent to Dining).
+       * A P2P rail is skipped (it names how money moved, not what it bought). For each other merchant:
+       *   - an active rule already gives every answered row this category: nothing new to learn;
+       *   - a `varies` merchant: learn nothing merchant-wide; ask which narrowed rule, if any, to keep;
+       *   - the answer agrees with the merchant's current meaning, or it has none yet: learn it merchant-wide
+       *     (merchant_memory, plus the bare-merchant rule when `scope` is "memory-and-rule");
+       *   - the answer CONTRADICTS it: learn nothing yet; ask what makes these rows different, with suggested
+       *     narrowings (domain/rule-question.ts). The reply goes to answerRuleQuestion.
+       * The rows themselves are categorized by the caller either way; only the generalization waits. Runs in
+       * the caller's scope.
+       */
+      const learnFromAnswer = Effect.fn("CategorizationStore.learnFromAnswer")(function* (
+        ids: ReadonlyArray<string>,
+        categoryId: string,
+        personId: string | null,
+        scope: "memory" | "memory-and-rule",
+      ) {
+        const keyRows = yield* sql<{ merchant_key: string; category_policy: string | null }>`
+          SELECT DISTINCT t.merchant_key, m.category_policy FROM transaction t
           LEFT JOIN merchant m ON m.merchant_key = t.merchant_key
           WHERE ${sql.in("t.id", ids)}
             AND t.merchant_key IS NOT NULL
             AND COALESCE(m.kind, 'merchant') <> 'p2p'
         `;
+        const learned: string[] = [];
+        const questions: RuleQuestion[] = [];
+        if (keyRows.length === 0) return { learned, questions };
+        // Narrowed rules only: a merchant-wide rule agreeing with the answer still goes through the normal
+        // learn path below (it refreshes memory and earns the "apply to N past?" offer).
+        const narrowRules = (yield* loadActiveRules()).filter(
+          (rule) =>
+            rule.action_kind === "categorize" &&
+            (rule.account_id !== null || rule.direction !== "either" || rule.amount_min !== null ||
+              rule.amount_max !== null || rule.text_match !== null),
+        );
+
+        for (const { merchant_key: key, category_policy: policyRaw } of keyRows) {
+          const policy = policyRaw === "varies" ? "varies" : "single";
+          const merchantKey = MerchantKey.make(key);
+          const answered = yield* loadQuestionRows(key, ids, "answered");
+          const alreadyRuled = answered.every((row) => {
+            const winner = evaluateRules(narrowRules, row);
+            return winner !== null && winner.category_id === categoryId;
+          });
+          if (alreadyRuled) continue;
+
+          if (policy === "varies") {
+            const others = yield* loadQuestionRows(key, ids, { notIn: categoryId });
+            questions.push({
+              merchant_key: merchantKey,
+              category_id: categoryId,
+              previous_category_id: null,
+              policy,
+              answered: answered.length,
+              example_text: answered[0]?.matchText ?? null,
+              suggestions: suggestNarrowings(merchantKey, answered, others),
+            });
+            continue;
+          }
+
+          const previous = yield* currentMeaning(key, personId, ids);
+          if (previous === null || previous === categoryId) {
+            yield* upsertMerchantMemory(key, personId, categoryId);
+            if (scope === "memory-and-rule") yield* upsertBareCategoryRule(key, categoryId);
+            learned.push(key);
+            continue;
+          }
+          const others = yield* loadQuestionRows(key, ids, { in: previous });
+          questions.push({
+            merchant_key: merchantKey,
+            category_id: categoryId,
+            previous_category_id: previous,
+            policy,
+            answered: answered.length,
+            example_text: answered[0]?.matchText ?? null,
+            suggestions: suggestNarrowings(merchantKey, answered, others),
+          });
+        }
+        return { learned, questions };
       });
 
       /** category NAME -> id for household-level (person_id NULL) categories (the kb-sync idiom). */
@@ -372,24 +570,7 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
         // Active category rules (Pitch 16). Fetched once and decoded with the shared RuleRow schema so the
         // pure evaluateRules reasons over the same shape the client streams. amounts arrive as NUMERIC
         // decimal strings (Money), account_id/category_id as text.
-        const ruleRaw = yield* sql<Record<string, unknown>>`
-          SELECT
-            id::text AS id,
-            merchant_key,
-            account_id::text AS account_id,
-            direction,
-            amount_min::text AS amount_min,
-            amount_max::text AS amount_max,
-            text_match,
-            action_kind,
-            category_id::text AS category_id,
-            source,
-            status,
-            created_at::text AS created_at,
-            updated_at::text AS updated_at
-          FROM rule WHERE status = 'active'
-        `;
-        const activeRules = yield* decodeRuleRows(ruleRaw);
+        const activeRules = yield* loadActiveRules();
 
         return {
           memoryByKey,
@@ -415,7 +596,8 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
             t.imported_payee,
             t.description_raw,
             m.default_category_id AS kb_default_category_id,
-            m.kind AS merchant_kind
+            m.kind AS merchant_kind,
+            m.category_policy
           FROM transaction t
           LEFT JOIN merchant m ON m.id = t.merchant_id
           WHERE ${sql.in("t.id", ids)}
@@ -457,6 +639,8 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
             row.merchant_kind === "p2p"
               ? row.merchant_kind
               : null,
+          categoryPolicy:
+            row.category_policy === "single" || row.category_policy === "varies" ? row.category_policy : null,
           bridgePayeeKey:
             row.bridge_payee !== null && row.merchant_key !== null ? (row.merchant_key as typeof MerchantKey.Type) : null,
           matchText: row.imported_payee ?? row.description_raw,
@@ -487,7 +671,8 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
             t.imported_payee,
             t.description_raw,
             m.default_category_id AS kb_default_category_id,
-            m.kind AS merchant_kind
+            m.kind AS merchant_kind,
+            m.category_policy
           FROM transaction t
           LEFT JOIN merchant m ON m.id = t.merchant_id
           WHERE t.account_id = ${accountId}
@@ -517,9 +702,9 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
        * Stamp a category on a set of rows AND learn it as a rule, WITHOUT opening its own transaction —
        * for composition inside another store's transaction (the Pitch-16 disposition endpoint answers
        * "Spending/Income -> category X" by calling this). Stamps category/person/categorized_by='rule'/
-       * confidence, then upserts a bare-merchant rule (Slice C) plus keeps the legacy merchant_memory row
-       * (still read by the ranker until the tables are unified). Rows with no merchant_key contribute no
-       * rule. Reports nothing (no past-count prompt on the one-tap inbox answer). Runs in the CALLER's sql
+       * confidence, then learns via learnFromAnswer (a bare-merchant rule plus the legacy merchant_memory row
+       * when the answer agrees with the merchant; a question when it contradicts it). Rows with no
+       * merchant_key contribute no rule. Returns the rule questions (no past-count prompt on this path). Runs in the CALLER's sql
        * scope, exactly like autoApplyBatch and LinksStore.applyLinkExclusions.
        */
       const stampCategory = Effect.fn("CategorizationStore.stampCategory")(function* (
@@ -527,7 +712,7 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
         categoryId: string,
         personId: string | null,
       ) {
-        if (ids.length === 0) return;
+        if (ids.length === 0) return [];
         yield* sql`
           UPDATE transaction
           SET category_id = ${categoryId},
@@ -536,15 +721,12 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
               confidence = 1.000
           WHERE ${sql.in("id", ids)}
         `;
-        const keyRows = yield* learnableMerchantKeys(ids);
-        for (const { merchant_key } of keyRows) {
-          yield* upsertMerchantMemory(merchant_key, personId, categoryId);
-          yield* upsertBareCategoryRule(merchant_key, categoryId);
-        }
+        const { questions } = yield* learnFromAnswer(ids, categoryId, personId, "memory-and-rule");
         yield* links.dismissOpenCandidates(ids);
         // Categorizing IS "it's spending, not a transfer": turn any transfer disposition on these rows
         // back (clear the link + exclusion, tombstone the rule) so a reclassify actually sticks.
         yield* links.clearTransferForRows(ids);
+        return questions;
       });
 
       /** Clear category/person/confidence on a set of rows, in the CALLER's transaction (the disposition
@@ -566,9 +748,9 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
       /**
        * The user's categorization of a set of rows, in ONE transaction:
        *   1. Stamp category/person/categorized_by='user'/confidence=1.000 on exactly the given ids.
-       *   2. Learn the FUTURE: upsert merchant_memory for each distinct merchant_key among those rows, so
-       *      the next import of that merchant auto-applies (the asymmetric-learning contract). Rows with no
-       *      merchant_key contribute no memory.
+       *   2. Learn the FUTURE via learnFromAnswer: merchant_memory for each merchant the answer agrees with
+       *      (the next import auto-applies), a rule question for each it contradicts or that varies. Rows
+       *      with no merchant_key contribute nothing.
        *   3. Report the PAST: count each merchant's other still-uncategorized rows so the caller can offer
        *      "apply to N past?". This method NEVER changes past rows — that is the explicit applyToPast step.
        * A category id that does not exist is rejected by the FK, surfaced as a SqlError (500) — the UI only
@@ -580,7 +762,7 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
           Effect.gen(function* () {
             const txid = yield* currentTxid();
             if (input.ids.length === 0) {
-              return { txid, past_uncategorized: [] } satisfies SetCategoryResult;
+              return { txid, past_uncategorized: [], rule_questions: [] } satisfies SetCategoryResult;
             }
 
             yield* sql`
@@ -592,13 +774,15 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
               WHERE ${sql.in("id", input.ids)}
             `;
 
-            // The distinct merchant_keys among the just-categorized rows that an answer can teach about.
-            const keyRows = yield* learnableMerchantKeys(input.ids);
-            const merchantKeys = keyRows.map((row) => row.merchant_key);
-
-            for (const key of merchantKeys) {
-              yield* upsertMerchantMemory(key, input.person_id, input.category_id);
-            }
+            // Learn the merchants this answer agrees with; ask about the ones it contradicts or that vary.
+            // Only learned merchants get the "apply to N past?" offer — backfilling a contradicted merchant
+            // would spread the very answer that is still in question.
+            const { learned: merchantKeys, questions } = yield* learnFromAnswer(
+              input.ids,
+              input.category_id,
+              input.person_id,
+              "memory",
+            );
 
             // The categorization answers any open transfer/refund candidate on these rows — settle it, or
             // the anomaly gate keeps the categorized row in the inbox forever.
@@ -623,7 +807,7 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
               if (count > 0) past.push({ merchant_key: key as typeof MerchantKey.Type, count });
             }
 
-            return { txid, past_uncategorized: past } satisfies SetCategoryResult;
+            return { txid, past_uncategorized: past, rule_questions: questions } satisfies SetCategoryResult;
           }),
         );
       });
@@ -816,6 +1000,106 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
         );
       });
 
+      /**
+       * Settle a RuleQuestion — what the merchant should learn from an answer that contradicted it (or from
+       * any answer about a `varies` merchant). The rows themselves were categorized when the question was
+       * raised; this only decides the generalization:
+       *   - Narrow: a conditioned rule for the merchant, living next to the merchant-wide meaning and
+       *     out-specifying it (evaluateRules). A Narrow with no condition is rejected — that would be the
+       *     merchant-wide overwrite the question exists to avoid, and Replace says it explicitly.
+       *   - Replace: the merchant now means this category — learned memory updated, and its merchant-wide rule
+       *     (if it has one) re-pointed. The merchant goes back to `single`.
+       *   - Varies: the merchant has no single meaning — mark it `varies`, forget its learned categories, and
+       *     pause its merchant-wide rule (paused, not deleted: it stays visible and resumable on the Rules
+       *     page). Narrowed rules keep applying.
+       */
+      const answerRuleQuestion = Effect.fn("CategorizationStore.answerRuleQuestion")(function* (body: unknown) {
+        const input = yield* decodeAnswerRuleQuestion(body);
+        const { answer } = input;
+        if (
+          answer._tag === "Narrow" &&
+          answer.account_id === null &&
+          answer.direction === "either" &&
+          answer.amount_min === null &&
+          answer.amount_max === null &&
+          answer.text_match === null
+        ) {
+          return yield* new NarrowRuleHasNoCondition({ merchant_key: input.merchant_key });
+        }
+        return yield* sql.withTransaction(
+          Effect.gen(function* () {
+            const txid = yield* currentTxid();
+            switch (answer._tag) {
+              case "Narrow": {
+                yield* sql`
+                  INSERT INTO rule ${sql.insert({
+                    merchant_key: input.merchant_key,
+                    account_id: answer.account_id,
+                    direction: answer.direction,
+                    amount_min: answer.amount_min,
+                    amount_max: answer.amount_max,
+                    text_match: answer.text_match,
+                    action_kind: "categorize",
+                    category_id: input.category_id,
+                    source: "user",
+                    status: "active",
+                  })}
+                `;
+                break;
+              }
+              case "Replace": {
+                yield* upsertMerchantMemory(input.merchant_key, input.person_id, input.category_id);
+                yield* sql`
+                  UPDATE rule SET category_id = ${input.category_id}, status = 'active', source = 'user', updated_at = NOW()
+                  WHERE merchant_key = ${input.merchant_key} AND action_kind = 'categorize'
+                    AND account_id IS NULL AND direction = 'either' AND amount_min IS NULL AND amount_max IS NULL
+                    AND text_match IS NULL
+                `;
+                yield* sql`UPDATE merchant SET category_policy = 'single' WHERE merchant_key = ${input.merchant_key}`;
+                break;
+              }
+              case "Varies": {
+                yield* markVaries(input.merchant_key);
+                break;
+              }
+            }
+            return { txid } satisfies WriteResult;
+          }),
+        );
+      });
+
+      /** Mark a merchant `varies`: forget its merchant-wide learned categories and pause its merchant-wide
+       *  rule, so nothing applies one category to all of it any more. Runs in the caller's scope. */
+      const markVaries = Effect.fn("CategorizationStore.markVaries")(function* (merchantKey: string) {
+        yield* sql`UPDATE merchant SET category_policy = 'varies' WHERE merchant_key = ${merchantKey}`;
+        yield* sql`DELETE FROM merchant_memory WHERE merchant_key = ${merchantKey}`;
+        yield* sql`
+          UPDATE rule SET status = 'disabled', updated_at = NOW()
+          WHERE merchant_key = ${merchantKey} AND action_kind = 'categorize' AND status = 'active'
+            AND account_id IS NULL AND direction = 'either' AND amount_min IS NULL AND amount_max IS NULL
+            AND text_match IS NULL
+        `;
+      });
+
+      /** Switch a merchant between `single` and `varies` (the Rules page). Going to `varies` does what the
+       *  Varies answer does; going back to `single` only flips the policy — the next answer teaches it. */
+      const setMerchantCategoryPolicy = Effect.fn("CategorizationStore.setMerchantCategoryPolicy")(function* (
+        body: unknown,
+      ) {
+        const input = yield* decodeSetMerchantCategoryPolicy(body);
+        return yield* sql.withTransaction(
+          Effect.gen(function* () {
+            const txid = yield* currentTxid();
+            if (input.policy === "varies") {
+              yield* markVaries(input.merchant_key);
+            } else {
+              yield* sql`UPDATE merchant SET category_policy = 'single' WHERE merchant_key = ${input.merchant_key}`;
+            }
+            return { txid } satisfies WriteResult;
+          }),
+        );
+      });
+
       const CHIP_LIMIT = 6;
 
       /** One "popular category" fallback row: the household's most-used categories overall. */
@@ -972,7 +1256,23 @@ export class CategorizationStore extends Context.Service<CategorizationStore>()(
         return { chips_by_key: chipsByKey } satisfies TriageCandidatesBatchResult;
       });
 
-      return { loadContext, loadFacts, factsOf, autoApplyBatch, stampCategory, clearRows, setCategory, clearCategory, applyToPast, learnRule, sweepMonth, candidatesFor, candidatesForBatch } as const;
+      return {
+        loadContext,
+        loadFacts,
+        factsOf,
+        autoApplyBatch,
+        stampCategory,
+        clearRows,
+        setCategory,
+        clearCategory,
+        applyToPast,
+        learnRule,
+        answerRuleQuestion,
+        setMerchantCategoryPolicy,
+        sweepMonth,
+        candidatesFor,
+        candidatesForBatch,
+      } as const;
     }),
   },
 ) {}
