@@ -138,7 +138,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-3">
-      <div className="text-[11px] uppercase tracking-wide text-text-muted">{label}</div>
+      <div className="text-xs text-text-muted">{label}</div>
       <div
         className={cn(
           "mt-0.5 text-lg font-semibold tabular-nums",

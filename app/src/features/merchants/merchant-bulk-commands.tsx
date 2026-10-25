@@ -149,7 +149,7 @@ export function MerchantBulkCommands({
                     <span className="min-w-0 truncate">
                       {item.canonical_name}
                       {item.id === defaultWinnerId && (
-                        <span className="ml-2 text-[10px] uppercase tracking-wide text-text-muted">
+                        <span className="ml-2 text-xs text-text-muted">
                           most used
                         </span>
                       )}

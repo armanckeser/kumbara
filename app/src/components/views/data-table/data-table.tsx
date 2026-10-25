@@ -25,6 +25,7 @@ import { SelectionFab } from "./selection-fab";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useScrollDirection } from "@/lib/use-scroll-direction";
+import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import { useFilter } from "./filter-context";
 import { ColumnVisibilityContext } from "./column-visibility-context";
 
@@ -152,7 +153,7 @@ function isGroupHeader<TData>(item: TData | GroupHeaderMarker): item is GroupHea
  *  close to real heights so first paint doesn't visibly jump; the ResizeObserver then measures each
  *  actual row. Data rows vary (a plain row vs one with an inline suggestion strip), so we estimate on
  *  the taller side to reduce upward jumps. */
-const ESTIMATED_HEADER_HEIGHT = 29;
+const ESTIMATED_HEADER_HEIGHT = 42;
 const ESTIMATED_ROW_HEIGHT = 53;
 
 /** Horizontal inset shared by the column-header row, data rows, and group headers so their content stays
@@ -184,6 +185,10 @@ export function DataTable<TData, TValue>({
   const selectionEnabled = renderSelectionSurface !== undefined;
   const [selectionMode, setSelectionMode] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  // On a phone the checkbox column stays out of the row until a long-press enters selection mode, so a
+  // row leads with its face and name; a mouse keeps the checkboxes as the visible way in.
+  const coarse = useCoarsePointer();
+  const hideSelect = coarse && !selectionMode;
 
   const isGrouped = viewState.groupBy !== "none" && groupedItems.length > 0;
 
@@ -223,7 +228,7 @@ export function DataTable<TData, TValue>({
       enterSelectionMode: () => setSelectionMode(true),
     },
     state: {
-      columnVisibility,
+      columnVisibility: hideSelect ? { ...columnVisibility, select: false } : columnVisibility,
       rowSelection,
     },
   });
@@ -392,7 +397,14 @@ export function DataTable<TData, TValue>({
         {toolbar}
         <div
           role="row"
-          className={cn("mt-3 grid items-center border-b border-border/60", COLUMN_GAP, ROW_INSET)}
+          // Column names help a mouse user sort out the optional columns; on a phone the rows explain
+          // themselves, so the header row is left out.
+          className={cn(
+            "mt-3 items-center border-b border-border/60",
+            coarse ? "hidden" : "grid",
+            COLUMN_GAP,
+            ROW_INSET,
+          )}
           style={{ gridTemplateColumns }}
         >
           {table.getHeaderGroups().map((headerGroup) =>
@@ -401,7 +413,7 @@ export function DataTable<TData, TValue>({
                 role="columnheader"
                 key={header.id}
                 className={cn(
-                  "h-9 flex items-center text-[11px] font-medium tracking-wide uppercase whitespace-nowrap text-text-muted",
+                  "flex h-9 items-center whitespace-nowrap text-xs font-medium text-text-muted",
                   header.column.columnDef.meta?.headClassName,
                 )}
               >
@@ -655,7 +667,7 @@ function SelectableRowInner<TData>({
       data-row-index={row.index}
       className={cn(
         // min-h-11 keeps even a single-line row a ≥44px touch target while the paddings stay dense.
-        "grid min-h-11 items-center border-b border-border/60 transition-colors hover:bg-surface-raised/60",
+        "grid min-h-11 items-center border-b border-border/40 transition-colors hover:bg-surface-raised/60",
         COLUMN_GAP,
         ROW_INSET,
         isSelected && "bg-surface-overlay",
@@ -707,22 +719,18 @@ const SelectableRow = memo(SelectableRowInner, (previous, next) => {
 }) as typeof SelectableRowInner;
 
 /** A group header row in the virtualized list (grouped mode). Spans the full width (not the column grid)
- *  and shows the group label, count, and the grouper's optional aggregate (e.g. a per-day net total).
- *  Deliberately COMPACT — it's a divider, not content: small text and slim padding so a screenful shows
- *  more transactions (it isn't a touch target, so it needn't reach the 44px zone). */
+ *  and shows the group label and the grouper's optional aggregate (e.g. a per-day net total). Plain text
+ *  on the page, not a filled bar: a label for the rows below, with room above it to start a new group. */
 function GroupHeaderRow({ marker }: { marker: GroupHeaderMarker }) {
   return (
     <div
       role="row"
       className={cn(
-        "flex items-center justify-between border-b border-border/60 bg-surface-raised/40 py-1.5 text-xs font-medium text-text-secondary",
+        "flex items-end justify-between pb-1.5 pt-5 text-xs font-medium text-text-secondary",
         ROW_INSET,
       )}
     >
-      <span>
-        {marker.label}
-        <span className="ml-2 text-[11px] text-muted-foreground">({marker.count})</span>
-      </span>
+      <span>{marker.label}</span>
       {marker.aggregate != null && (
         <span className="tabular-nums text-text-muted">{marker.aggregate}</span>
       )}

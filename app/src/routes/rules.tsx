@@ -13,11 +13,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Asterisk, Search } from "lucide-react";
 import { apiDelete, apiGet, apiPost } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { cn } from "../lib/utils";
+import { Face } from "../components/merchant-face";
+import { brandDomain } from "../features/brands/brand-domains";
 import { categoryCollection, merchantCollection, type Category, type Merchant } from "../lib/collections";
 import {
   routeKindOf,
@@ -83,6 +85,15 @@ function RulesPage() {
         ((merchantData ?? []) as Merchant[])
           .filter((merchant) => merchant.category_policy === "varies")
           .map((merchant) => merchant.merchant_key),
+      ),
+    [merchantData],
+  );
+  const domainByKey = useMemo(
+    () =>
+      new Map(
+        ((merchantData ?? []) as Merchant[]).flatMap((merchant) =>
+          merchant.domain !== null ? [[merchant.merchant_key, merchant.domain] as const] : [],
+        ),
       ),
     [merchantData],
   );
@@ -201,6 +212,7 @@ function RulesPage() {
         <CategoryRulesView
           rules={rules.filter(isCategoryRule)}
           variesKeys={variesKeys}
+          domainByKey={domainByKey}
           names={names}
           needle={needle}
           matches={matches}
@@ -240,6 +252,7 @@ interface MerchantGroup {
 function CategoryRulesView({
   rules,
   variesKeys,
+  domainByKey,
   names,
   needle,
   matches,
@@ -248,6 +261,7 @@ function CategoryRulesView({
 }: {
   rules: ReadonlyArray<CategoryRule>;
   variesKeys: ReadonlySet<string>;
+  domainByKey: ReadonlyMap<string, string>;
   names: RuleNames;
   needle: string;
   matches: (rule: StandingRule) => boolean;
@@ -294,6 +308,7 @@ function CategoryRulesView({
           key={group.key ?? "any"}
           group={group}
           varies={group.key !== null && variesKeys.has(group.key)}
+          domain={group.key !== null ? (domainByKey.get(group.key) ?? brandDomain(group.name)) : null}
           names={names}
           actions={actions}
         />
@@ -305,11 +320,13 @@ function CategoryRulesView({
 function MerchantCard({
   group,
   varies,
+  domain,
   names,
   actions,
 }: {
   group: MerchantGroup;
   varies: boolean;
+  domain: string | null;
   names: RuleNames;
   actions: RuleActions;
 }) {
@@ -319,9 +336,10 @@ function MerchantCard({
   const hasNarrow = group.rules.some((rule) => narrowness(rule) > 0);
   return (
     <li className="rounded-lg border border-border">
-      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border-subtle px-3 py-2.5">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-text-primary">{group.name}</p>
+      <div className="flex items-center gap-3 border-b border-border-subtle px-3 py-2.5">
+        <Face name={group.name} domain={domain} icon={group.key === null ? Asterisk : null} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-medium text-text-primary">{group.name}</p>
           <p className="text-xs text-text-muted">
             {group.rules.length === 1 ? "1 rule" : `${group.rules.length} rules`}
             {categories.length > 0 ? ` · ${categories.join(", ")}` : ""}
@@ -539,7 +557,7 @@ function FlatRulesView({
         return (
           <section key={section.tag} className="flex flex-col gap-2">
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">{section.title}</h2>
+              <h2 className="text-sm font-semibold text-text-muted">{section.title}</h2>
               <p className="text-xs text-text-muted">{section.blurb}</p>
             </div>
             <ul className="flex flex-col gap-2">

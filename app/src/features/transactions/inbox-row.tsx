@@ -10,7 +10,6 @@
 // This row holds ZERO decision logic (R2): it renders already-derived state (chips ranked by the server,
 // cues from /api/inbox/context) and calls injected handlers that POST to the server.
 
-import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
@@ -44,6 +43,7 @@ import type { TimelineEntry } from "./inbox-timeline";
 import { descriptorSearchUrl } from "./lookup";
 import type { TriageChip } from "./use-triage";
 import { brandDomain } from "../brands/brand-domains";
+import { Face } from "@/components/merchant-face";
 
 const USD = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
@@ -61,64 +61,6 @@ const KIND_ICONS: Record<BusinessKind, LucideIcon> = {
   entertainment: Clapperboard,
   shopping: ShoppingBag,
 };
-
-/** The merchant's logo — its site's favicon (Google's s2 service, by domain) on a white tile, the way most
- *  favicons are drawn to be seen. Calls `onFail` when there is none, so the caller falls back. */
-function Logo({ domain, className, onFail }: { domain: string; className: string; onFail: () => void }) {
-  return (
-    <span className={cn("flex shrink-0 items-center justify-center overflow-hidden bg-white", className)}>
-      <img
-        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`}
-        alt=""
-        aria-hidden
-        onError={onFail}
-        // s2 answers an unknown domain with a 16px globe instead of an error; treat that as no logo.
-        onLoad={(event) => {
-          if (event.currentTarget.naturalWidth <= 16) onFail();
-        }}
-        className="size-full object-contain"
-      />
-    </span>
-  );
-}
-
-/** The row's face: what kind of thing this is, before any word is read. A merchant with a known website
- *  shows its logo; otherwise a link candidate shows its question (transfer / refund), a paycheck a bank, a
- *  merchant its business kind, else its initial. */
-function RowIcon({ domain, icon, initial }: { domain: string | null; icon: LucideIcon | null; initial: string }) {
-  const [failed, setFailed] = useState<string | null>(null);
-  if (domain !== null && failed !== domain) {
-    return <Logo domain={domain} className="size-[42px] rounded-[13px] p-1.5" onFail={() => setFailed(domain)} />;
-  }
-  const Icon = icon;
-  return (
-    <span className="flex size-[42px] shrink-0 items-center justify-center rounded-[13px] bg-surface-overlay/70 text-text-primary">
-      {Icon !== null ? (
-        <Icon className="size-5 opacity-90" strokeWidth={1.75} aria-hidden />
-      ) : (
-        <span className="text-base font-semibold">{initial}</span>
-      )}
-    </span>
-  );
-}
-
-/** A same-day charge's small face: its logo, else its business-kind icon, else its initial. */
-function ChargeFace({ domain, icon, initial }: { domain: string | null; icon: LucideIcon | null; initial: string }) {
-  const [failed, setFailed] = useState<string | null>(null);
-  if (domain !== null && failed !== domain) {
-    return <Logo domain={domain} className="size-5 rounded-full p-0.5" onFail={() => setFailed(domain)} />;
-  }
-  const Icon = icon;
-  return (
-    <span className="flex size-5 items-center justify-center rounded-full bg-surface-overlay">
-      {Icon !== null ? (
-        <Icon className="size-3 text-text-primary" aria-hidden />
-      ) : (
-        <span className="text-[10px] font-semibold text-text-primary">{initial}</span>
-      )}
-    </span>
-  );
-}
 
 /** A pill answer. The one `primary` chip per row is the app's best guess; the rest are quiet. */
 function Chip({
@@ -334,7 +276,9 @@ export function InboxRow({
           aria-expanded={open}
           className="flex w-full items-center gap-3 text-left"
         >
-          <RowIcon domain={logoDomain} icon={icon} initial={item.payee.trim().slice(0, 1).toUpperCase()} />
+          {/* The row's face: a merchant's logo; else a link candidate's question (transfer / refund), a
+              paycheck's bank, a merchant's business kind; else its initial. */}
+          <Face name={item.payee} domain={logoDomain} icon={icon} size="lg" />
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="flex items-baseline justify-between gap-3">
               <span className="flex min-w-0 items-baseline gap-1.5">
@@ -343,7 +287,7 @@ export function InboxRow({
                 </span>
                 {/* A cohort is one answer for several charges; the amount is their total. */}
                 {count > 1 && (
-                  <span className="shrink-0 font-mono text-[13px] text-text-secondary" aria-label={`${count} charges`}>
+                  <span className="shrink-0 text-[13px] tabular-nums text-text-secondary" aria-label={`${count} charges`}>
                     ×{count}
                   </span>
                 )}
@@ -353,7 +297,7 @@ export function InboxRow({
               </span>
               <Amount
                 value={count > 1 ? question.totalAmount : item.amountValue}
-                className="shrink-0 font-mono text-sm font-medium"
+                className="shrink-0 text-[15px] font-medium tabular-nums"
               />
             </span>
           </span>
@@ -426,13 +370,14 @@ export function InboxRow({
                       key={index}
                       className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border-subtle bg-surface-raised pr-2.5 pl-1 text-[12.5px] text-text-secondary"
                     >
-                      <ChargeFace
+                      <Face
+                        name={charge.payee}
                         domain={charge.domain ?? brandDomain(charge.payee)}
                         icon={charge.kind !== null ? KIND_ICONS[charge.kind] : null}
-                        initial={charge.payee.slice(0, 1).toUpperCase()}
+                        size="sm"
                       />
                       <span className="max-w-28 truncate">{charge.payee}</span>
-                      <span className="font-mono text-text-muted">{USD.format(charge.amount)}</span>
+                      <span className="tabular-nums text-text-muted">{USD.format(charge.amount)}</span>
                     </span>
                   );
                 })}

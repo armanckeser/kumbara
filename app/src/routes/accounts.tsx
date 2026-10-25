@@ -146,7 +146,7 @@ function AccountsPage() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-3xl tracking-tight">Accounts</h2>
+        <h2 className="font-display text-2xl tracking-tight sm:text-3xl">Accounts</h2>
         <div className="flex flex-wrap items-center gap-2">
           <SyncButton />
           {manageMode && (
@@ -164,14 +164,14 @@ function AccountsPage() {
             size="sm"
             onClick={() => setManageMode((on) => !on)}
           >
-            {manageMode ? "Done" : "Manage accounts"}
+            {manageMode ? "Done" : "Manage"}
           </Button>
         </div>
       </div>
 
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-text-muted">
-          No accounts yet. Add one from <span className="font-medium">Manage accounts</span>.
+          No accounts yet. Add one from <span className="font-medium">Manage</span>.
         </div>
       ) : (
         <FilterProvider<AccountItem, string>
@@ -252,9 +252,9 @@ function SyncButton() {
   return (
     <div className="flex items-center gap-2">
       {note !== null && <span className="text-xs text-text-muted">{note}</span>}
-      <Button variant="outline" size="sm" onClick={() => void sync()} disabled={busy}>
+      <Button variant="outline" size="sm" onClick={() => void sync()} disabled={busy} aria-label="Sync now">
         <RefreshCw className={cn("size-4", busy && "animate-spin")} />
-        {busy ? "Syncing…" : "Sync now"}
+        <span className="hidden sm:inline">{busy ? "Syncing…" : "Sync now"}</span>
       </Button>
     </div>
   );

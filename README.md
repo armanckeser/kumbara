@@ -7,7 +7,7 @@
 <p align="center"><b><a href="https://kumbara-demo.armanckeser.com/">Click around the live demo →</a></b> &nbsp;<sub>fake household, runs entirely in your browser</sub></p>
 
 <p align="center">
-  <img src="img/inbox.gif" alt="Three taps in the inbox file twelve transactions: one answer covers every charge from a merchant, one confirms a transfer between your own accounts, then the budget" width="340" />
+  <img src="img/inbox.gif" alt="Two taps clear the inbox: one confirms a transfer between your own accounts, one accepts the best guess for every merchant, then the transactions list with each merchant's logo" width="340" />
 </p>
 
 - Files what it recognizes and asks about the rest once per merchant.

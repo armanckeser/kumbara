@@ -10,6 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { Face } from "@/components/merchant-face";
+import { brandDomain } from "../brands/brand-domains";
 import { type TransactionGroup, netAmount } from "../../../domain/transaction";
 import { paycheckFlow } from "../../../domain/paycheck";
 import type { Account, Category, IncomeSource, Person } from "../../lib/collections";
@@ -50,6 +52,16 @@ export interface DetailSheetCategoryActions {
   readonly reviewPast?: (merchantKeys: readonly string[]) => void;
 }
 
+/** "Tue, Oct 27, 2026". Feed dates are calendar days stamped at noon UTC, so the day is read in UTC. */
+const dayLabel = (iso: string): string =>
+  new Date(iso).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
 function primaryName(group: TransactionGroup): string {
   const primary = group.primary;
   return primary.payee ?? primary.imported_payee ?? primary.description_raw;
@@ -71,8 +83,11 @@ export function TransactionDetailSheet({
   onDeleteSynthetic,
   onGeneratePaycheck,
   paycheck,
+  domain,
 }: {
   group: TransactionGroup | null;
+  /** The merchant's website domain (merchant.domain), for the logo at the top. */
+  domain?: string | null;
   /** Linked transactions to surface as clickable "Related" rows (transfer counterparts). Resolved by the
    *  route from already-decided links (R2); empty when none. */
   related?: readonly RelatedTransaction[];
@@ -152,6 +167,7 @@ export function TransactionDetailSheet({
             onDeleteSynthetic={onDeleteSynthetic}
             onGeneratePaycheck={onGeneratePaycheck}
             paycheck={paycheck ?? null}
+            domain={domain ?? null}
           />
         )}
       </SheetContent>
@@ -183,8 +199,10 @@ function SheetBody({
   onDeleteSynthetic,
   onGeneratePaycheck,
   paycheck,
+  domain,
 }: {
   group: TransactionGroup;
+  domain: string | null;
   relatedRows: readonly RelatedTransaction[];
   accountName: string | null;
   onOpenAccount?: (accountId: string) => void;
@@ -303,8 +321,25 @@ function SheetBody({
       >
         <SheetPane active={page === "detail"}>
           <div className="flex flex-col gap-6 p-6">
-            <SheetHeader className="p-0">
-              <SheetTitle className="text-xl">{primaryName(group)}</SheetTitle>
+            {/* The header answers "what was this?" in one look: the merchant's face, name and the money
+                that landed (netAmount: refunds netted in; a paycheck's deduction legs are gross
+                attributions and never subtract), then when. */}
+            <SheetHeader className="items-center gap-0 p-0 pt-2 text-center">
+              <Face
+                name={primaryName(group)}
+                domain={domain ?? brandDomain(primaryName(group))}
+                size="xl"
+                className="mb-3"
+              />
+              <SheetTitle className="text-lg font-medium">{primaryName(group)}</SheetTitle>
+              <Amount
+                value={parseFloat(netAmount(group))}
+                className="mt-1 block font-display text-4xl tracking-tight tabular-nums"
+              />
+              <p className="mt-1.5 text-sm text-text-muted">
+                {dayLabel(group.primary.posted_at ?? group.primary.transacted_at ?? group.primary.first_seen_at)}
+                {group.primary.posted_at === null && " · Pending"}
+              </p>
               {/* The merchant_key is a lowercased slug of the payee ("bereket marketplace monmouth" under a
                   "Bereket Marketplace Monmouth" title) — showing it verbatim just repeats the title. Show it
                   ONLY when it carries something the title doesn't (an unresolved single-word key, a different
@@ -315,29 +350,6 @@ function SheetBody({
                 </SheetDescription>
               )}
             </SheetHeader>
-
-            <RawDescription group={group} />
-
-            {/* Pitch 33: an inline free-text note on this transaction — the one truth the bank feed can't
-                carry ("this Amazon charge was the kid's birthday gift"). A cheap inline edit, never a modal.
-                Self-contained block; the write goes to PATCH /api/transactions/:id/note (R3). */}
-            <NoteField txnId={group.primary.id} initialNote={group.primary.note} />
-
-            <div>
-              {/* Final amount = netAmount(group), the money that actually landed (primary with refunds
-                  netted in). This is the ONE figure for every group, paychecks included (Pitch 41 / Issue
-                  #23): an agent deduction leg is a GROSS attribution, never subtracted from what posted, so
-                  no paycheck special-case is needed here anymore. Gross is reconstructed in the Paycheck
-                  panel below via paycheckFlow; it never adjusts this landed amount. */}
-              <p className="text-xs text-text-muted">Final amount</p>
-              <Amount value={parseFloat(netAmount(group))} className="block text-3xl tabular-nums" />
-            </div>
-
-            <AccountLine
-              accountId={group.primary.account_id}
-              accountName={accountName}
-              onOpenAccount={onOpenAccount}
-            />
 
             <CategoryField
               current={current}
@@ -353,6 +365,19 @@ function SheetBody({
                   : () => categoryActions.reviewPast?.(pending.matches.map((match) => match.merchant_key))
               }
             />
+
+            <AccountLine
+              accountId={group.primary.account_id}
+              accountName={accountName}
+              onOpenAccount={onOpenAccount}
+            />
+
+            {/* Pitch 33: an inline free-text note on this transaction — the one truth the bank feed can't
+                carry ("this Amazon charge was the kid's birthday gift"). A cheap inline edit, never a modal.
+                Self-contained block; the write goes to PATCH /api/transactions/:id/note (R3). */}
+            <NoteField txnId={group.primary.id} initialNote={group.primary.note} />
+
+            <RawDescription group={group} />
 
             {/* Paycheck breakdown (Pitch 38/41): expected-vs-actual net, then the domain's gross -> deductions
                 -> posted story (paycheckFlow) rendered top-down, exactly as the money moved. The individual
@@ -394,7 +419,7 @@ function SheetBody({
                       <button
                         type="button"
                         onClick={onGeneratePaycheck}
-                        className="rounded-md border border-border px-2.5 py-1 text-xs text-text-secondary hover:bg-surface-raised/50"
+                        className="h-8 rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-transform hover:text-text-primary active:scale-[0.97]"
                       >
                         Set up as paycheck
                       </button>
@@ -403,7 +428,7 @@ function SheetBody({
                     <button
                       type="button"
                       onClick={() => onLinkExisting("refund")}
-                      className="rounded-md border border-border px-2.5 py-1 text-xs text-text-secondary hover:bg-surface-raised/50"
+                      className="h-8 rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-transform hover:text-text-primary active:scale-[0.97]"
                     >
                       Link a refund
                     </button>
@@ -412,7 +437,7 @@ function SheetBody({
                     <button
                       type="button"
                       onClick={() => onLinkExisting("transfer")}
-                      className="rounded-md border border-border px-2.5 py-1 text-xs text-text-secondary hover:bg-surface-raised/50"
+                      className="h-8 rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-transform hover:text-text-primary active:scale-[0.97]"
                     >
                       Link a transfer
                     </button>
@@ -421,7 +446,7 @@ function SheetBody({
                     <button
                       type="button"
                       onClick={onDrillIntoAddSynthetic}
-                      className="rounded-md border border-border px-2.5 py-1 text-xs text-text-secondary hover:bg-surface-raised/50"
+                      className="h-8 rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-transform hover:text-text-primary active:scale-[0.97]"
                     >
                       + Synthetic entry
                     </button>
@@ -430,7 +455,7 @@ function SheetBody({
                     <button
                       type="button"
                       onClick={onDrillIntoAddActual}
-                      className="rounded-md border border-border px-2.5 py-1 text-xs text-text-secondary hover:bg-surface-raised/50"
+                      className="h-8 rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-transform hover:text-text-primary active:scale-[0.97]"
                     >
                       + Actual transaction
                     </button>
@@ -541,7 +566,7 @@ function PaycheckPanel({
   };
   return (
     <div className="rounded-md border border-border p-3">
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">Paycheck</p>
+      <p className="mb-1 text-xs font-semibold text-text-muted">Paycheck</p>
       {/* Provenance: where this breakdown came from, so an automatic paycheck is never a mystery. */}
       <p className="mb-2 text-xs text-text-muted">
         From {source?.name ?? "an income source"}’s rules
@@ -569,7 +594,7 @@ function PaycheckPanel({
             type="button"
             disabled={busy}
             onClick={() => answer("paychecks/accept-period")}
-            className="rounded-md border border-border px-2.5 py-1 text-xs text-text-secondary hover:bg-surface-raised/50"
+            className="h-8 rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-transform hover:text-text-primary active:scale-[0.97]"
           >
             Accept this period
           </button>
@@ -579,7 +604,7 @@ function PaycheckPanel({
           type="button"
           disabled={busy}
           onClick={() => answer("paychecks/detach")}
-          className="rounded-md border border-border px-2.5 py-1 text-xs text-text-secondary hover:bg-surface-raised/50"
+          className="h-8 rounded-full border border-border-subtle bg-surface-raised px-3 text-xs text-text-secondary transition-transform hover:text-text-primary active:scale-[0.97]"
         >
           Not a paycheck
         </button>
@@ -674,7 +699,7 @@ function RawDescription({ group }: { group: TransactionGroup }) {
   if (raw.trim().length === 0 || raw === primaryName(group)) return null;
   return (
     <div>
-      <p className="mb-1 text-xs text-text-muted">Raw description</p>
+      <p className="mb-1 text-xs text-text-muted">Bank description</p>
       <p className="font-mono text-xs text-text-secondary break-words">{raw}</p>
       {/* Pitch 32: "What is this?" — a web search for the raw descriptor, opened in the user's own browser
           (R9-safe: a client-side link; the app sends nothing). Self-contained here so it stays clear of any
@@ -683,10 +708,10 @@ function RawDescription({ group }: { group: TransactionGroup }) {
         href={descriptorSearchUrl(raw)}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-2 inline-flex min-h-6 items-center gap-1 text-xs text-accent underline-offset-2 hover:underline"
+        className="mt-2 inline-flex min-h-6 items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
       >
         <Search className="size-3.5 shrink-0" aria-hidden />
-        What is this?
+        Search the web
       </a>
     </div>
   );

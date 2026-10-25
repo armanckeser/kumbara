@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 import { createSelectColumn } from "../../components/views/data-table";
 import { Amount } from "../transactions/amount";
 import type { MerchantItem } from "./merchant-item";
+import { Face } from "@/components/merchant-face";
+import { brandDomain } from "../brands/brand-domains";
 
 /**
  * The merchants table columns. The select column (bulk resolve) leads ONLY in Manage mode — outside it
@@ -18,14 +20,14 @@ const SOURCE_STYLES: Record<MerchantItem["source"], string> = {
   // KB is the shipped norm (neutral). Learned is a user/agent win (accent). Unresolved needs attention
   // (warning) — it is the number that should trend down as rules/KB improve.
   kb: "bg-surface-overlay text-text-secondary",
-  learned: "bg-accent/15 text-accent",
+  learned: "bg-primary/12 text-primary",
   unresolved: "bg-warning/15 text-warning",
 };
 
 const SOURCE_LABEL: Record<MerchantItem["source"], string> = {
-  kb: "KB",
+  kb: "Known brand",
   learned: "Learned",
-  unresolved: "Unresolved",
+  unresolved: "Not resolved",
 };
 
 const KIND_LABEL: Record<MerchantItem["kind"], string> = {
@@ -59,16 +61,15 @@ export function createMerchantColumns(
           // the name, the transactions-ledger idiom, so the default view is two readable columns on a
           // phone instead of four crushed ones. The raw merchant_key moves to the hover title (diagnostic,
           // not a per-row line). The dedicated Category/Txns columns below ship hidden but toggleable.
-          <div className="min-w-0" title={item.merchant_key}>
-            <span className="block truncate font-medium text-text-primary">{item.canonical_name}</span>
-            <span className="block truncate text-xs">
-              {categoryName !== null ? (
-                <span className="text-text-muted">{categoryName}</span>
-              ) : (
-                <span className="italic text-warning/90">needs a category</span>
-              )}
-              {item.txnCount > 0 && <span className="text-text-muted/70"> · {item.txnCount} txns</span>}
-            </span>
+          <div className="flex min-w-0 items-center gap-3" title={item.merchant_key}>
+            <Face name={item.canonical_name} domain={item.domain ?? brandDomain(item.canonical_name)} />
+            <div className="min-w-0">
+              <span className="block truncate text-[15px] font-medium text-text-primary">{item.canonical_name}</span>
+              <span className="block truncate text-xs text-text-muted">
+                {categoryName ?? "No category yet"}
+                {item.txnCount > 0 && ` · ${item.txnCount} ${item.txnCount === 1 ? "charge" : "charges"}`}
+              </span>
+            </div>
           </div>
         );
       },
@@ -90,7 +91,7 @@ export function createMerchantColumns(
         }
         // No category is the actionable state for an unresolved merchant — the whole point of this view is
         // to turn these into a category. A muted "needs a category" reads as a to-do, not an error.
-        return <span className="text-xs italic text-text-muted">needs a category</span>;
+        return <span className="text-xs text-text-muted">No category yet</span>;
       },
     },
     {
@@ -126,7 +127,7 @@ export function createMerchantColumns(
         }
         return (
           <div className="text-right">
-            <Amount value={item.totalSpent} className="text-sm" />
+            <Amount value={item.totalSpent} className="text-sm font-medium" />
           </div>
         );
       },

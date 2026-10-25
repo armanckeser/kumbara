@@ -20,7 +20,7 @@ import {
 } from "../lib/collections";
 import { apiPost } from "../lib/api";
 import { Button } from "../components/ui/button";
-import { BrandIcon } from "../components/brand-icon";
+import { Face } from "../components/merchant-face";
 import { cn } from "../lib/utils";
 import { cadenceSuffix } from "../../domain/recurring";
 import { payCadenceLabel, payCadenceSuffix, type PayCadence } from "../../domain/paycheck";
@@ -159,6 +159,38 @@ function SubscriptionsPage() {
     }
   };
 
+  // A series' actions live in its sheet, not on every row: mute (or unmute), and for income, set up as a
+  // paycheck (or say it already is one).
+  const drillActions = (item: SeriesItem) => {
+    const muted = sections.muted.some((other) => other.row.id === item.row.id);
+    const income = sections.income.some((other) => other.row.id === item.row.id);
+    return (
+      <>
+        {income &&
+          (paycheckMerchantKeys.has(item.row.merchant_key) ? (
+            <span className="inline-flex h-8 items-center rounded-full bg-primary/12 px-3 text-xs text-primary">
+              Set up as a paycheck
+            </span>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => markAsPaycheck(item)}>
+              Set up as a paycheck
+            </Button>
+          ))}
+        {muted ? (
+          <Button variant="outline" size="sm" onClick={() => setVisibility(item, "shown")}>
+            <Bell className="opacity-70" />
+            Unmute
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => setVisibility(item, "muted")}>
+            <BellOff className="opacity-70" />
+            Mute
+          </Button>
+        )}
+      </>
+    );
+  };
+
   const empty =
     sections.income.length +
       sections.subscriptions.length +
@@ -169,26 +201,8 @@ function SubscriptionsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="font-display text-2xl tracking-tight sm:text-3xl">Recurring activity</h2>
-          <p className="mt-1.5 text-sm text-text-secondary">
-            <span className="text-lg font-semibold tabular-nums text-text-primary">
-              {USD.format(sections.subscriptionsMonthly)}
-            </span>
-            <span className="text-text-muted"> /mo in subscriptions</span>
-            {sections.billsMonthly > 0 && (
-              <span className="text-text-muted">
-                {" "}· ~{USD.format(sections.billsMonthly)} /mo in regular bills
-              </span>
-            )}
-            {sections.incomeMonthly > 0 && (
-              <span className="text-text-muted">
-                {" "}· ~{USD.format(sections.incomeMonthly)} /mo in income
-              </span>
-            )}
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-2xl tracking-tight sm:text-3xl">Recurring</h2>
         <div className="flex items-center gap-2">
           {linkMode ? (
             <Button variant="ghost" size="sm" onClick={exitLinkMode} aria-label="Cancel linking">
@@ -208,10 +222,23 @@ function SubscriptionsPage() {
           )}
           <Button variant="outline" size="sm" onClick={rescan} disabled={scanning} aria-label="Rescan the ledger">
             <RefreshCw className={cn("opacity-70", scanning && "animate-spin")} />
-            {scanning ? "Scanning…" : "Rescan"}
+            <span className="hidden sm:inline">{scanning ? "Scanning…" : "Rescan"}</span>
           </Button>
         </div>
       </div>
+
+      {/* The monthly totals, one figure per kind, so the page opens on what recurring money adds up to. */}
+      {!empty && (
+        <dl className="flex flex-wrap gap-x-8 gap-y-3">
+          <MonthlyStat label="Subscriptions" value={USD.format(sections.subscriptionsMonthly)} />
+          {sections.billsMonthly > 0 && (
+            <MonthlyStat label="Regular bills" value={`~${USD.format(sections.billsMonthly)}`} />
+          )}
+          {sections.incomeMonthly > 0 && (
+            <MonthlyStat label="Income" value={`~${USD.format(sections.incomeMonthly)}`} />
+          )}
+        </dl>
+      )}
 
       {scanError !== null && <p className="text-xs text-danger">Rescan failed — {scanError}</p>}
 
@@ -243,13 +270,10 @@ function SubscriptionsPage() {
       {sections.income.length > 0 && (
         <Section title="Income" count={sections.income.length}>
           {sections.income.map((item) => (
-            <SeriesCard
+            <SeriesRow
               key={item.row.id}
               item={item}
               onOpen={pressCard}
-              onMute={() => setVisibility(item, "muted")}
-              onMarkPaycheck={() => markAsPaycheck(item)}
-              paycheckLinked={paycheckMerchantKeys.has(item.row.merchant_key)}
               linkMode={linkMode}
               selected={selectedIds.includes(item.row.id)}
             />
@@ -260,11 +284,10 @@ function SubscriptionsPage() {
       {sections.subscriptions.length > 0 && (
         <Section title="Subscriptions" count={sections.subscriptions.length}>
           {sections.subscriptions.map((item) => (
-            <SeriesCard
+            <SeriesRow
               key={item.row.id}
               item={item}
               onOpen={pressCard}
-              onMute={() => setVisibility(item, "muted")}
               linkMode={linkMode}
               selected={selectedIds.includes(item.row.id)}
             />
@@ -275,11 +298,10 @@ function SubscriptionsPage() {
       {sections.bills.length > 0 && (
         <Section title="Regular bills" count={sections.bills.length}>
           {sections.bills.map((item) => (
-            <SeriesCard
+            <SeriesRow
               key={item.row.id}
               item={item}
               onOpen={pressCard}
-              onMute={() => setVisibility(item, "muted")}
               linkMode={linkMode}
               selected={selectedIds.includes(item.row.id)}
             />
@@ -290,11 +312,10 @@ function SubscriptionsPage() {
       {sections.ended.length > 0 && (
         <Collapsible label={`Ended (${sections.ended.length})`}>
           {sections.ended.map((item) => (
-            <SeriesCard
+            <SeriesRow
               key={item.row.id}
               item={item}
               onOpen={pressCard}
-              onMute={() => setVisibility(item, "muted")}
               linkMode={linkMode}
               selected={selectedIds.includes(item.row.id)}
             />
@@ -305,11 +326,10 @@ function SubscriptionsPage() {
       {sections.muted.length > 0 && (
         <Collapsible label={`Muted (${sections.muted.length})`}>
           {sections.muted.map((item) => (
-            <SeriesCard
+            <SeriesRow
               key={item.row.id}
               item={item}
               onOpen={pressCard}
-              onUnmute={() => setVisibility(item, "shown")}
               linkMode={linkMode}
               selected={selectedIds.includes(item.row.id)}
             />
@@ -319,6 +339,7 @@ function SubscriptionsPage() {
 
       <LineageDrillIn
         item={drillItem}
+        actions={drillItem === null ? undefined : drillActions(drillItem)}
         open={drillItem !== null}
         onOpenChange={(next) => {
           if (!next) setDrillItem(null);
@@ -328,13 +349,27 @@ function SubscriptionsPage() {
   );
 }
 
+function MonthlyStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-text-muted">{label}</dt>
+      <dd className="mt-0.5 font-display text-xl tracking-tight tabular-nums text-text-primary">
+        {value}
+        <span className="ml-0.5 text-sm text-text-muted">/mo</span>
+      </dd>
+    </div>
+  );
+}
+
+/** A group of rows under a plain label, the same as the ledger's group headers. */
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-        {title} <span className="opacity-60">· {count}</span>
+      <h3 className="flex items-end justify-between pb-1.5 text-xs font-medium text-text-secondary">
+        {title}
+        <span className="tabular-nums text-text-muted">{count}</span>
       </h3>
-      <ul className="flex flex-col gap-2">{children}</ul>
+      <ul className="flex flex-col">{children}</ul>
     </section>
   );
 }
@@ -348,37 +383,27 @@ function Collapsible({ label, children }: { label: string; children: React.React
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="mb-2 flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-text-muted transition-colors hover:text-text-secondary"
+        className="flex items-center gap-1 pb-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary"
       >
         <ChevronDown className={cn("size-3.5 transition-transform", !open && "-rotate-90")} />
         {label}
       </button>
-      {open && <ul className="flex flex-col gap-2">{children}</ul>}
+      {open && <ul className="flex flex-col">{children}</ul>}
     </section>
   );
 }
 
-function SeriesCard({
+/** One recurring series: face · name · cadence and next date · amount per period. Tapping opens its sheet
+ *  (history, mute, paycheck set-up); in link mode a tap picks it instead. */
+function SeriesRow({
   item,
   onOpen,
-  onMute,
-  onUnmute,
-  onMarkPaycheck,
-  paycheckLinked = false,
   linkMode = false,
   selected = false,
 }: {
   item: SeriesItem;
   onOpen: (item: SeriesItem) => void;
-  onMute?: () => void;
-  onUnmute?: () => void;
-  /** Mark this inbound series as a paycheck (Pitch 38): create an income source bound to its merchant_key so
-   *  matching deposits can generate deductions. Only wired for the Income section. */
-  onMarkPaycheck?: () => void;
-  /** True when an income source already claims this series' merchant_key — shows a "paycheck" badge instead
-   *  of the mark affordance. */
-  paycheckLinked?: boolean;
-  /** In link mode the card selects instead of opening the drill-in; `selected` draws the picked state. */
+  /** In link mode the row selects instead of opening the drill-in; `selected` draws the picked state. */
   linkMode?: boolean;
   selected?: boolean;
 }) {
@@ -386,7 +411,7 @@ function SeriesCard({
   const isEnded = activity === "ended";
   const delta = priceChange(row);
   const amount = Number.parseFloat(row.med_amount);
-  // A series already part of an obligation gets a small badge so the user sees which are linked.
+  // A series already part of an obligation says so, so the user sees which are linked.
   const linked = row.lineage_id !== null;
 
   // Linked income shows its AUTHORED cadence ("Twice a month"); everything else the detected label.
@@ -395,90 +420,43 @@ function SeriesCard({
       ? payCadenceLabel[authoredCadence]
       : `${row.cadence[0].toUpperCase()}${row.cadence.slice(1)}`;
   const subline = isEnded
-    ? `Last seen ${MONTH_YEAR.format(asLocalDate(row.last_seen))} · ${row.txn_count} charges`
-    : `${cadenceLabel} · next ~${MONTH_DAY.format(asLocalDate(row.next_expected))} · ${row.txn_count} charges`;
-
-  const stop = (handler: () => void) => (event: React.MouseEvent) => {
-    event.stopPropagation();
-    handler();
-  };
+    ? `Last seen ${MONTH_YEAR.format(asLocalDate(row.last_seen))}`
+    : `${cadenceLabel} · next ${MONTH_DAY.format(asLocalDate(row.next_expected))}`;
 
   return (
     <li
       onClick={() => onOpen(item)}
       className={cn(
-        "flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-surface-raised p-3 transition-colors hover:border-border/80 active:bg-surface-overlay",
+        "-mx-1 flex min-h-11 cursor-pointer items-center gap-3 border-b border-border/40 px-1 py-2 transition-colors hover:bg-surface-raised/60 sm:-mx-3 sm:px-3",
         isEnded && "opacity-60",
-        selected && "border-accent ring-1 ring-accent",
+        linkMode && "rounded-lg",
+        selected && "bg-primary/10 ring-1 ring-primary/50",
       )}
     >
-      <BrandIcon name={displayName} domain={brandDomain(row.merchant_key)} />
-      {/* Main column: name + status badges on line one, then a subline that also carries the "now $X" price
-          move. The price chip lived on the name row before and, together with the right-side amount and a
-          full-width "Mark as paycheck" button, crushed the name on a phone. Here the name row holds only
-          small badges and the price move drops to the subline, so nothing competes for the name's width. */}
+      <Face name={displayName} domain={brandDomain(row.merchant_key) ?? brandDomain(displayName)} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate font-medium text-text-primary">{displayName}</span>
-          {linked && (
-            <span className="shrink-0 rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent">
-              linked
-            </span>
-          )}
-          {row.confidence === "low" && (
-            <span className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] text-text-muted">
-              possible
-            </span>
-          )}
-        </div>
-        <div className="mt-0.5 flex items-center gap-2">
-          <span className="truncate text-xs text-text-muted">{subline}</span>
-          {delta !== null && !isEnded && (
-            <span
-              className={cn(
-                "shrink-0 rounded-full px-1.5 py-0.5 text-[10px]",
-                delta > 0 ? "bg-danger/15 text-danger" : "bg-success/15 text-success",
-              )}
-            >
-              {delta > 0 ? "↑" : "↓"} now {USD.format(Number.parseFloat(row.last_amount))}
-            </span>
-          )}
-        </div>
+        <span className="block truncate text-[15px] font-medium text-text-primary">{displayName}</span>
+        <span className="block truncate text-xs text-text-muted">
+          {subline}
+          {linked && " · Linked"}
+          {row.confidence === "low" && " · Possible"}
+        </span>
       </div>
-      {/* Right column: the amount over its actions, so the "Mark as paycheck" affordance stacks UNDER the
-          amount on a narrow phone instead of pushing it off-screen. `shrink-0` keeps the amount readable; the
-          action shortens to "Paycheck" (the aria-label carries the full intent). */}
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <div className="text-sm font-medium tabular-nums text-text-primary">
+      <div className="flex shrink-0 flex-col items-end">
+        <span className="text-sm font-medium tabular-nums text-text-primary">
           {row.amount_variability === "variable" && <span className="text-text-muted">~</span>}
           {USD.format(amount)}
-          <span className="text-xs text-text-muted"> {authoredCadence !== null ? payCadenceSuffix[authoredCadence] : cadenceSuffix[row.cadence]}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          {!linkMode && onMarkPaycheck !== undefined && !paycheckLinked && (
-            <Button
-              variant="outline"
-              size="xs"
-              onClick={stop(onMarkPaycheck)}
-              aria-label={`Mark ${displayName} as a paycheck`}
-            >
-              Paycheck
-            </Button>
-          )}
-          {!linkMode && paycheckLinked && (
-            <span className="rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent">paycheck</span>
-          )}
-          {!linkMode && onMute !== undefined && (
-            <Button variant="ghost" size="xs" onClick={stop(onMute)} aria-label={`Mute ${displayName}`}>
-              <BellOff className="opacity-50" />
-            </Button>
-          )}
-          {!linkMode && onUnmute !== undefined && (
-            <Button variant="ghost" size="xs" onClick={stop(onUnmute)} aria-label={`Unmute ${displayName}`}>
-              <Bell className="opacity-50" />
-            </Button>
-          )}
-        </div>
+          <span className="text-xs font-normal text-text-muted">
+            {" "}
+            {authoredCadence !== null ? payCadenceSuffix[authoredCadence] : cadenceSuffix[row.cadence]}
+          </span>
+        </span>
+        {/* A price move since the usual amount: up reads as a warning, down as good news. */}
+        {delta !== null && !isEnded && (
+          <span className={cn("text-[11px] tabular-nums", delta > 0 ? "text-danger" : "text-success")}>
+            {delta > 0 ? "↑" : "↓"} now {USD.format(Number.parseFloat(row.last_amount))}
+          </span>
+        )}
       </div>
     </li>
   );

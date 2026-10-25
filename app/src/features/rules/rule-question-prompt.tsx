@@ -118,7 +118,7 @@ function QuestionBody({ question, onDone }: { question: RuleQuestion; onDone: ()
 
       {question.suggestions.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-text-muted">{category} when…</p>
+          <p className="text-xs font-medium text-text-muted">{category} when…</p>
           {question.suggestions.map((suggestion) => (
             <Button
               key={suggestionLabel(suggestion, names)}

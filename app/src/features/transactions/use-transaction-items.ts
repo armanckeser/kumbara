@@ -141,6 +141,11 @@ export function useTransactionItems(): TransactionItems {
       if (name !== undefined) likelyCategoryByMerchantKey.set(memory.merchant_key, name);
     }
 
+    const domainByMerchantKey = new Map<string, string>();
+    for (const merchant of merchants) {
+      if (merchant.domain !== null) domainByMerchantKey.set(merchant.merchant_key, merchant.domain);
+    }
+
     // Paycheck reconciliation per deposit (Pitch 38): status + expected/actual net. A diverged paycheck is
     // an inbox anomaly. A pure projection of the streamed server verdict (R2) — no reconciliation math here.
     const paycheckByTxnId = paycheckViewsByTxnId(paycheckPeriods);
@@ -155,6 +160,7 @@ export function useTransactionItems(): TransactionItems {
       txnById: new Map(decodedRows.map((row) => [row.id, row])),
       likelyCategoryByMerchantKey,
       paycheckByTxnId,
+      domainByMerchantKey,
       variesMerchantKeys,
     };
   }, [accounts, categories, merchants, memories, decodedLinks, decodedRows, rows, paycheckPeriods]);

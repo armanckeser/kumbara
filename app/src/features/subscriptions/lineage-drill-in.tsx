@@ -7,7 +7,7 @@
 // When two series were linked "same obligation", the chain spans both; when a category continuation was
 // attached (Bilt), the rent-category transfers appear on the line too, marked by source.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
@@ -50,10 +50,13 @@ export function LineageDrillIn({
   item,
   open,
   onOpenChange,
+  actions,
 }: {
   item: SeriesItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** What can be done with this series (mute, set up as a paycheck), shown under the chart. */
+  actions?: ReactNode;
 }) {
   const [detail, setDetail] = useState<LineageDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -182,6 +185,8 @@ export function LineageDrillIn({
           {timeline !== null && timeline.chargeCount === 0 && !loading && (
             <p className="text-sm text-text-muted">No charges found for this obligation yet.</p>
           )}
+
+          {actions !== undefined && <div className="flex flex-wrap gap-2">{actions}</div>}
         </div>
       </SheetContent>
     </Sheet>
@@ -201,7 +206,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-lg border border-border bg-surface-raised p-3">
-      <div className="text-[11px] uppercase tracking-wide text-text-muted">{label}</div>
+      <div className="text-xs text-text-muted">{label}</div>
       <div className="mt-0.5 flex items-baseline gap-2">
         <span className="text-lg font-semibold tabular-nums text-text-primary">{value}</span>
         {delta !== null && delta !== undefined && (

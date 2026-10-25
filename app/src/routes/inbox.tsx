@@ -351,7 +351,7 @@ function InboxPage() {
     <div className="pb-16">
       <div className="mb-5 flex items-baseline justify-between">
         <h2 className="font-display text-3xl tracking-tight">Inbox</h2>
-        {questionCount > 0 && <span className="font-mono text-sm text-text-secondary">{questionCount} left</span>}
+        {questionCount > 0 && <span className="text-sm tabular-nums text-text-muted">{questionCount} left</span>}
       </div>
 
       {questionCount === 0 ? (
@@ -454,6 +454,7 @@ function InboxPage() {
 
       <TransactionDetailSheet
         group={detail?.representative.group ?? null}
+        domain={detail?.representative.domain ?? null}
         related={
           detail === null
             ? []

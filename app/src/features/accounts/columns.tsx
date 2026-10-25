@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { createSelectColumn } from "../../components/views/data-table";
-import { BrandIcon } from "../../components/brand-icon";
+import { Face } from "@/components/merchant-face";
 import { Amount } from "../transactions/amount";
 import type { AccountItem } from "./account-item";
 import { ACCOUNT_TYPE_ICONS, ACCOUNT_TYPE_LABELS, providerLabel } from "./account-types";
@@ -32,19 +32,17 @@ export function createAccountColumns(manageMode: boolean): ColumnDef<AccountItem
         const subline =
           item.institutionName !== null ? item.institutionName : providerLabel(item.provider);
         return (
-          // Cap the name column on mobile so the type icon + balance stay on-screen; unconstrained it
-          // ate the whole row. From sm up it grows normally.
-          <div className="flex min-w-0 max-w-[45vw] items-center gap-2.5 sm:max-w-none">
-            {/* The bank's face: its favicon (institution.domain streams from the SimpleFIN org block),
-                or a deterministic monogram for manual/domain-less accounts. */}
-            <BrandIcon name={subline} domain={item.institutionDomain} className="size-7" />
+          <div className="flex min-w-0 items-center gap-3">
+            {/* The bank's face: its logo (institution.domain streams from the SimpleFIN org block), else
+                the account type's icon, so the face also says what kind of account this is. */}
+            <Face name={subline} domain={item.institutionDomain} icon={ACCOUNT_TYPE_ICONS[item.type]} />
             <div className="min-w-0">
             <span className="flex items-center gap-2">
-              <span className="truncate font-medium text-text-primary">{item.name}</span>
+              <span className="truncate text-[15px] font-medium text-text-primary">{item.name}</span>
               {/* A discovered account is new and needs opt-in; enabled/disabled show no name cue (disabled
                   dims the whole row instead). This is the ONLY status signal on the default view. */}
               {item.enrollment === "discovered" && (
-                <span className="shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-foreground">
+                <span className="shrink-0 rounded-full bg-primary/12 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
                   new
                 </span>
               )}
@@ -59,6 +57,8 @@ export function createAccountColumns(manageMode: boolean): ColumnDef<AccountItem
       id: "type",
       accessorKey: "type",
       header: "Type",
+      // Off by default: the group label and the face's fallback icon already say the type.
+      meta: { defaultHidden: true },
       cell: ({ row }) => {
         const type = row.original.type;
         const Icon = ACCOUNT_TYPE_ICONS[type];
@@ -96,7 +96,7 @@ export function createAccountColumns(manageMode: boolean): ColumnDef<AccountItem
                 manual
               </span>
             )}
-            <Amount value={row.original.balanceValue} className="block text-sm" />
+            <Amount value={row.original.balanceValue} className="block text-sm font-medium" />
           </div>
         ),
     },

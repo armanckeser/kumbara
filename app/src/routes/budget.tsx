@@ -108,55 +108,46 @@ function BudgetPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-2xl tracking-tight sm:text-3xl">Budget</h2>
-          {/* Inner cluster wraps too (matches accounts.tsx) so a phone never forces horizontal page
-              overflow; the long "Manage" label collapses to icon-only below sm. */}
-          <div className="flex flex-wrap items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mr-1"
-              aria-label="Manage categories & budget"
-              onClick={() => setManagingCategories(true)}
-            >
-              <SlidersHorizontal className="size-4" />
-              <span className="hidden sm:inline">Manage categories &amp; budget</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mr-1"
-              aria-label="Manage paychecks"
-              onClick={() => setManagingPaychecks(true)}
-            >
-              <Banknote className="size-4" />
-              <span className="hidden sm:inline">Paychecks</span>
-            </Button>
-            <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => setMonth((m) => shiftMonth(m, -1))}>
-              <ChevronLeft className="size-4" />
-            </Button>
-            <MonthPicker month={month} onMonthChange={setMonth} />
-            <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => setMonth((m) => shiftMonth(m, 1))}>
-              <ChevronRight className="size-4" />
-            </Button>
-            {/* Jump straight back to today's month — highlighted (and only present) when the board is showing a
-                different month, so it's a clear "return home" affordance without cluttering the current view. */}
-            {!onCurrentMonth && (
-              <Button
-                variant="secondary"
-                size="sm"
-                aria-label="Jump to this month"
-                onClick={() => setMonth(thisMonth)}
-              >
-                This month
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" aria-label="Refresh" onClick={() => void load()} disabled={loading}>
-              <RefreshCw className={cn("size-4", loading && "animate-spin")} />
-            </Button>
-          </div>
+      {/* Two rows: the page's own actions beside the title, then the month the board shows. Every button
+          says what it does in words; only the month arrows and refresh are bare icons. */}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="font-display text-2xl tracking-tight sm:text-3xl">Budget</h2>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setManagingCategories(true)}>
+            <SlidersHorizontal className="size-4" />
+            Categories
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setManagingPaychecks(true)}>
+            <Banknote className="size-4" />
+            Paychecks
+          </Button>
         </div>
+      </div>
+      <div className="mb-6 flex items-center gap-1">
+        <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => setMonth((m) => shiftMonth(m, -1))}>
+          <ChevronLeft className="size-4" />
+        </Button>
+        <MonthPicker month={month} onMonthChange={setMonth} />
+        <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => setMonth((m) => shiftMonth(m, 1))}>
+          <ChevronRight className="size-4" />
+        </Button>
+        {/* Jump straight back to today's month — only present when the board shows a different month. */}
+        {!onCurrentMonth && (
+          <Button variant="secondary" size="sm" onClick={() => setMonth(thisMonth)}>
+            This month
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-auto text-text-muted"
+          aria-label="Refresh"
+          onClick={() => void load()}
+          disabled={loading}
+        >
+          <RefreshCw className={cn("size-4", loading && "animate-spin")} />
+        </Button>
+      </div>
 
         {error !== null ? (
           <div className="rounded-lg border border-dashed border-rose-500/40 p-10 text-center text-sm text-rose-400">
@@ -503,7 +494,7 @@ function IncomeStrip({
     <div className="rounded-xl border border-border bg-surface-raised/40 p-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <div className="text-xs uppercase tracking-wide text-text-muted">Expected income</div>
+          <div className="text-xs text-text-muted">Expected income</div>
           {editing ? (
             <div className="mt-1 flex items-center gap-1">
               <span className="text-text-muted">$</span>
@@ -533,7 +524,7 @@ function IncomeStrip({
           )}
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wide text-text-muted">Detected income</div>
+          <div className="text-xs text-text-muted">Detected income</div>
           <div className="mt-2 text-2xl font-display tabular-nums text-emerald-400">
             <Amount value={parseFloat(summary.detectedIncome)} style="color" />
           </div>
@@ -826,7 +817,7 @@ function VariableGroup({
   return (
     <div className="mt-3">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[10px] uppercase tracking-wide text-text-muted/70">Variable</span>
+        <span className="text-xs text-text-muted/70">Variable</span>
         {rate !== null && left !== null && left >= 0 && (
           <button
             type="button"
@@ -898,7 +889,7 @@ function FixedGroup({
   return (
     <div className="mt-4 border-t border-border pt-3">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[10px] uppercase tracking-wide text-text-muted/70">Fixed</span>
+        <span className="text-xs text-text-muted/70">Fixed</span>
         <span className="text-xs tabular-nums text-text-muted">
           spent {usdCents(spent)}
           {target > 0 && <> of {usdCents(target)} expected</>}
@@ -994,7 +985,7 @@ function SavingsCard({
           closes: gross − taxes − pre-tax saving = take-home; take-home − needs − wants − unbudgeted = saved.
           Deductions are shown as negatives so the column reads as the subtraction it is. */}
       <div className="mt-4 border-t border-border pt-3">
-        <span className="text-[10px] uppercase tracking-wide text-text-muted/70">Where the money went</span>
+        <span className="text-xs text-text-muted/70">Where the money went</span>
         <ul className="mt-2 space-y-2">
           <SavingsBreakdownRow label="Gross income" value={breakdown.gross} />
           {breakdown.taxes > 0 && <SavingsBreakdownRow label="Taxes" value={-breakdown.taxes} />}

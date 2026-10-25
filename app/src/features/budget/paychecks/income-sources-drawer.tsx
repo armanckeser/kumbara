@@ -325,7 +325,7 @@ function IncomeSourceCard({
 
       {/* Deduction rules */}
       <div className="mt-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Deductions</p>
+        <p className="text-xs font-semibold text-text-muted">Deductions</p>
         <ul className="mt-2 flex flex-col gap-2">
           {sortedRules.map((rule) => (
             <DeductionRuleEditor

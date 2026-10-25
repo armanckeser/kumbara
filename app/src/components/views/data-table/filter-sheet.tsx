@@ -230,7 +230,7 @@ function MainPage({
 
       <Separator className="my-3" />
 
-      <div className="mb-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="mb-1.5 text-xs font-medium text-muted-foreground">
         Filters
       </div>
       <div className="space-y-0.5">
@@ -298,7 +298,7 @@ function SortPage({ onBack }: { onBack: () => void }) {
       <div className="max-h-64 overflow-y-auto">
         {Object.entries(categories).map(([category, options]) => (
           <div key={category} className="mb-3">
-            <div className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="mb-1 text-xs font-medium text-muted-foreground">
               {category}
             </div>
             <div className="space-y-0.5">

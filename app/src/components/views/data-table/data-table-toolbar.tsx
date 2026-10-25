@@ -31,10 +31,10 @@ export function DataTableToolbar({ trailing }: { trailing?: ReactNode }) {
         value={viewState.searchQuery}
         onChange={updateSearchQuery}
       />
-      <ItemCount
-        filteredCount={filteredCount}
-        activeFilterCount={activeFilterCount}
-      />
+      {/* A count only once a filter or a search narrows the list; the full list's size says nothing. */}
+      {(activeFilterCount > 0 || viewState.searchQuery.trim().length > 0) && (
+        <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{filteredCount} found</span>
+      )}
       {columnVisibility && (
         <ColumnsDropdown columns={columnVisibility.columns} />
       )}
@@ -110,22 +110,6 @@ function SearchInput({
         </Button>
       )}
     </div>
-  );
-}
-
-function ItemCount({
-  filteredCount,
-  activeFilterCount,
-}: {
-  filteredCount: number;
-  activeFilterCount: number;
-}) {
-  return (
-    <span className="shrink-0 text-sm text-muted-foreground">
-      {activeFilterCount > 0
-        ? `${filteredCount} filtered`
-        : `${filteredCount} items`}
-    </span>
   );
 }
 

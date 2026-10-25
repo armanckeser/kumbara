@@ -4,6 +4,8 @@ import { createSelectColumn } from "../../components/views/data-table";
 import type { TransactionGroupItem } from "./group-item";
 import { Amount } from "./amount";
 import { StateBadge } from "./state-badge";
+import { Face } from "@/components/merchant-face";
+import { brandDomain } from "../brands/brand-domains";
 
 // Plain currency for the refund subline (the <Amount> component carries tone/style; here we just want a
 // bare "$X" inside a sentence, so a local formatter is clearer than threading amount-style through).
@@ -33,51 +35,26 @@ export function createTransactionColumns(): ColumnDef<TransactionGroupItem>[] {
         // same treatment state-badge uses for Voided — so a revealed excluded row is unmistakable.
         const excluded = item.exclusion === "excluded";
         return (
-          <div className="flex min-w-0 max-w-[44ch] items-center gap-2">
-            {/* A purchase with pending->posted (or, later, refund) history carries a quiet dot to the
-                LEFT of the name — the cue that opening the row reveals the adjustment story. A fixed-
-                width slot keeps names aligned whether or not a row has history. */}
-            <span className="flex w-1.5 shrink-0 justify-center" aria-hidden={item.legCount === 0}>
-              {item.legCount > 0 && (
-                <span
-                  aria-label="Has history — open for details"
-                  className="size-1.5 rounded-full bg-text-muted"
-                />
-              )}
-            </span>
+          <div className="flex min-w-0 items-center gap-3">
+            <Face name={item.payee} domain={item.domain ?? brandDomain(item.payee)} />
             <div className="min-w-0">
               <span
                 className={cn(
-                  "block truncate text-sm font-medium text-text-primary",
+                  "block truncate text-[15px] font-medium text-text-primary",
                   excluded && "text-text-muted line-through",
                 )}
               >
                 {item.payee}
               </span>
-              {/* Subline (informational only on the ledger): an accepted refund shows what it netted; else
-                  the category once decided; else the raw bank string (the evidence for what the merchant
-                  is); else a bare gap. The decision itself happens on the Inbox route, not here. */}
-              {item.refundOf !== null ? (
-                <span className="block truncate text-xs text-accent">
-                  Refund applied — nets{" "}
-                  {USD.format(item.refundOf.netDelta)}
-                  {item.category !== null ? ` off ${item.category}` : ""}
-                </span>
-              ) : item.category !== null ? (
-                <span className="block truncate text-xs text-text-muted">
-                  {/* The category's own icon (from the same Category collection the picker/board use),
-                      guarded exactly as the picker does. Presentational — no row-height change. */}
-                  {item.categoryIcon !== null && <span aria-hidden>{item.categoryIcon} </span>}
-                  {item.category}
-                </span>
-              ) : item.description_raw.trim().length > 0 && item.description_raw !== item.payee ? (
-                <span
-                  className="block truncate font-mono text-xs text-text-muted/70"
-                  title={item.description_raw}
-                >
-                  {item.description_raw}
-                </span>
-              ) : null}
+              {/* One quiet line: what the row became. An accepted refund says what it netted; else the
+                  category once decided; else that it still needs an answer (given on the Inbox route). A
+                  pending charge says so at the end. */}
+              <span className="block truncate text-xs text-text-muted">
+                {item.refundOf !== null
+                  ? `Refund · nets ${USD.format(item.refundOf.netDelta)}${item.category !== null ? ` off ${item.category}` : ""}`
+                  : (item.category ?? "Not sorted yet")}
+                {item.state === "Pending" && " · Pending"}
+              </span>
             </div>
           </div>
         );
@@ -117,7 +94,7 @@ export function createTransactionColumns(): ColumnDef<TransactionGroupItem>[] {
       header: () => <div className="text-right">Amount</div>,
       meta: { gridColumn: "max-content", cellClassName: "text-right" },
       cell: ({ row }) => (
-        <Amount value={row.original.amountValue} className="block text-sm font-medium" />
+        <Amount value={row.original.amountValue} className="block text-[15px] font-medium tabular-nums" />
       ),
     },
   ];

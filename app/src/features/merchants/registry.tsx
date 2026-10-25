@@ -25,9 +25,9 @@ export const DEFAULT_SORT = "count-high";
 export const DEFAULT_GROUP_BY = "source" as const;
 
 const SOURCE_LABEL: Record<MerchantItem["source"], string> = {
-  kb: "KB",
-  learned: "Learned",
-  unresolved: "Unresolved",
+  kb: "Known brands",
+  learned: "Learned from you",
+  unresolved: "Not resolved",
 };
 // Deliberate display order (not alphabetical): the shipped norm, then user wins, then the attention set.
 const SOURCE_ORDER: Record<string, number> = { kb: 0, learned: 1, unresolved: 2 };
@@ -55,7 +55,12 @@ const groupBy = (
   }
   return Array.from(buckets.entries())
     .sort(([a], [b]) => compareKeys(a, b))
-    .map(([key, groupItems]) => ({ groupId: key, label: labelOf(key), items: groupItems }));
+    .map(([key, groupItems]) => ({
+      groupId: key,
+      label: labelOf(key),
+      items: groupItems,
+      aggregate: `${groupItems.length} merchants`,
+    }));
 };
 
 const groupBySource = (items: MerchantItem[]): ItemGroup<MerchantItem>[] =>
@@ -93,9 +98,9 @@ const manualRegistry: Partial<FilterRegistry<MerchantItem>> = {
     options: {
       source: "static",
       values: [
-        { value: "kb", label: "KB" },
-        { value: "learned", label: "Learned" },
-        { value: "unresolved", label: "Unresolved" },
+        { value: "kb", label: "Known brands" },
+        { value: "learned", label: "Learned from you" },
+        { value: "unresolved", label: "Not resolved" },
       ],
     },
     match: (item, filter) => matchThreeState(item.source, filter),

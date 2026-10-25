@@ -113,7 +113,7 @@ export function PositionDetailSheet({
               position the numbers above already say everything, and a one-row table is noise. */}
           {detail.lines.length > 1 && (
             <div className="mt-3">
-              <h4 className="text-[10px] uppercase tracking-wide text-text-muted/70">Held in</h4>
+              <h4 className="text-xs text-text-muted/70">Held in</h4>
               <ul className="mt-2 space-y-1">
                 {detail.lines.map((line) => (
                   <li key={line.accountId}>

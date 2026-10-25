@@ -240,7 +240,7 @@ export function ManageCategoriesDrawer({
                 if (rows.length === 0 && !isSpendBucket(bucket)) return null;
                 return (
                   <section key={bucket} className="flex flex-col gap-3">
-                    <h3 className="text-xs uppercase tracking-wide text-text-muted">{BUCKET_LABEL[bucket]}</h3>
+                    <h3 className="text-xs text-text-muted">{BUCKET_LABEL[bucket]}</h3>
                     {isSpendBucket(bucket) && (
                       <BucketTargetEditor
                         bucket={bucket}
@@ -267,7 +267,7 @@ export function ManageCategoriesDrawer({
 
               {archived.length > 0 && (
                 <section className="flex flex-col gap-2">
-                  <h3 className="text-xs uppercase tracking-wide text-text-muted">Archived</h3>
+                  <h3 className="text-xs text-text-muted">Archived</h3>
                   {[...archived]
                     .sort(compareCategoryOrder)
                     .map((category) =>
@@ -448,7 +448,7 @@ function CategorySubGroups({
     <div className="flex flex-col gap-3">
       {fixed.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase tracking-wide text-text-muted/70">Fixed</div>
+          <div className="text-xs text-text-muted/70">Fixed</div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEndFixed}>
             <SortableContext items={fixed.map((category) => category.id)} strategy={verticalListSortingStrategy}>
               {fixed.map(renderSortableRow)}
@@ -458,7 +458,7 @@ function CategorySubGroups({
       )}
       {variable.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase tracking-wide text-text-muted/70">Variable</div>
+          <div className="text-xs text-text-muted/70">Variable</div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEndVariable}>
             <SortableContext items={variable.map((category) => category.id)} strategy={verticalListSortingStrategy}>
               {variable.map(renderSortableRow)}
@@ -567,7 +567,7 @@ function IncomeAndActions({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-raised/40 p-3">
       <div>
-        <div className="text-xs uppercase tracking-wide text-text-muted">Expected income</div>
+        <div className="text-xs text-text-muted">Expected income</div>
         <div className="mt-1 flex items-center gap-2">
           <span className="text-text-muted">$</span>
           <Input
@@ -794,7 +794,7 @@ function AddCategoryForm() {
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-raised/40 p-3">
-      <span className="text-xs uppercase tracking-wide text-text-muted">Add a category</span>
+      <span className="text-xs text-text-muted">Add a category</span>
       <div className="flex flex-wrap items-center gap-2">
         <Input
           value={name}
@@ -1130,7 +1130,7 @@ function CategoryTapRow({
 function DetailField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-xs uppercase tracking-wide text-text-muted">{label}</span>
+      <span className="text-xs text-text-muted">{label}</span>
       {children}
     </div>
   );

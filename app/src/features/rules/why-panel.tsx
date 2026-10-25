@@ -93,7 +93,7 @@ export function WhyPanel({ transactionId, names }: { transactionId: string; name
 
   return (
     <div className="rounded-md border border-border p-3 text-sm">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Why it's like this</p>
+      <p className="mb-2 text-xs font-semibold text-text-muted">Why it's like this</p>
       <p className="text-text-secondary">{categoryLine}</p>
       {category.rule !== null && <RuleMention rule={category.rule} names={names} />}
       <p className="mt-2 text-text-secondary">{budgetLine}</p>

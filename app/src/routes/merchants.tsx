@@ -210,7 +210,7 @@ function MerchantsPage() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-3xl tracking-tight">Merchants</h2>
+        <h2 className="font-display text-2xl tracking-tight sm:text-3xl">Merchants</h2>
         <Button
           variant={manageMode ? "default" : "outline"}
           size="sm"

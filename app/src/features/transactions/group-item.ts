@@ -64,6 +64,9 @@ export interface TransactionJoins {
   /** merchant_keys the user marked `varies` (one payee, many kinds of purchase — merchant.category_policy).
    *  Their rows are asked about one at a time in the inbox, never as one cohort. Absent = none vary. */
   readonly variesMerchantKeys?: ReadonlySet<string>;
+  /** merchant_key -> the merchant's website domain (merchant.domain), so a row can show its logo. Absent =
+   *  no merchant has one yet. */
+  readonly domainByMerchantKey?: ReadonlyMap<string, string>;
 }
 
 /** The streamed paycheck reconciliation a group carries (Pitch 38): the server-computed status + the
@@ -264,6 +267,8 @@ export interface TransactionGroupItem extends Record<string, unknown> {
   /** Display name: primary payee, falling back to the normalized name then the raw description. */
   readonly payee: string;
   readonly merchant_key: string | null;
+  /** The merchant's website domain (for its logo), or null when none is known. */
+  readonly domain: string | null;
   readonly account_id: string;
   /** Joined account name (falls back to a short id if the account isn't loaded yet). */
   readonly accountName: string;
@@ -375,6 +380,7 @@ export const toGroupItem = (group: TransactionGroup, joins: TransactionJoins): T
     id: primary.id,
     payee: primary.payee ?? primary.imported_payee ?? primary.description_raw,
     merchant_key: primary.merchant_key,
+    domain: primary.merchant_key !== null ? joins.domainByMerchantKey?.get(primary.merchant_key) ?? null : null,
     account_id: primary.account_id,
     accountName,
     category_id: primary.category_id,

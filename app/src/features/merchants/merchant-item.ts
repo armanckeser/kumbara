@@ -27,6 +27,8 @@ export interface MerchantItem extends Record<string, unknown> {
   /** The normalized identity everything downstream keys on (shown mono in the table). */
   readonly merchant_key: string;
   readonly canonical_name: string;
+  /** The merchant's website domain (for its logo), or null. */
+  readonly domain: string | null;
   /** merchant | payment | transfer — payments/transfers route to link detection, not categorization. */
   readonly kind: Merchant["kind"];
   /** kb | learned | unresolved — the resolved-vs-unresolved axis the view groups on. */
@@ -49,6 +51,7 @@ export const toMerchantItem = (merchant: Merchant, statsByKey: MerchantStatsByKe
     id: merchant.id,
     merchant_key: merchant.merchant_key,
     canonical_name: merchant.canonical_name,
+    domain: merchant.domain,
     kind: merchant.kind,
     source: merchant.source,
     default_category_id: merchant.default_category_id,

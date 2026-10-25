@@ -169,7 +169,7 @@ export function StockPlanSection({
       {/* ---------- upcoming vests timeline ---------- */}
       {nextUpcoming.length > 1 && (
         <div className="rounded-lg border border-border p-4">
-          <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">Upcoming vests</h4>
+          <h4 className="mb-2 text-xs font-medium text-text-muted">Upcoming vests</h4>
           <div className="flex flex-col gap-1.5 text-sm">
             {nextUpcoming.map((tranche) => (
               <div key={`${tranche.grant_id}-${tranche.vest_date}`} className="flex items-baseline justify-between gap-2">
@@ -696,7 +696,7 @@ export function AddGrantSheet({
 
           {rows.length > 0 && (
             <div className="rounded-md border border-border/60 p-3">
-              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-text-muted">
+              <div className="mb-1 text-xs font-medium text-text-muted">
                 Vest schedule{custom !== null ? " (edited)" : ""}
               </div>
               <div className="flex flex-col gap-1.5">

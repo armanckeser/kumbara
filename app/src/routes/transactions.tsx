@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useCallback, useMemo, useState } from "react";
@@ -199,6 +200,11 @@ function TransactionsPage() {
       if (name !== undefined) likelyCategoryByMerchantKey.set(memory.merchant_key, name);
     }
 
+    const domainByMerchantKey = new Map<string, string>();
+    for (const merchant of merchants) {
+      if (merchant.domain !== null) domainByMerchantKey.set(merchant.merchant_key, merchant.domain);
+    }
+
     // Paycheck reconciliation per deposit (Pitch 38): a pure projection of the streamed server verdict (R2).
     const paycheckByTxnId = paycheckViewsByTxnId(paycheckPeriods);
 
@@ -212,6 +218,7 @@ function TransactionsPage() {
       txnById: new Map(decodedRows.map((row) => [row.id, row])),
       likelyCategoryByMerchantKey,
       paycheckByTxnId,
+      domainByMerchantKey,
     };
   }, [accounts, categories, merchants, memories, decodedLinks, decodedRows, rows, paycheckPeriods]);
 
@@ -347,12 +354,10 @@ function TransactionsPage() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-display text-2xl tracking-tight sm:text-3xl">Transactions</h2>
-          <p className="mt-1 text-sm text-text-muted">{items.length} this view</p>
-        </div>
+        <h2 className="font-display text-2xl tracking-tight sm:text-3xl">Transactions</h2>
         <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-          Add transaction
+          <Plus className="size-4" aria-hidden />
+          Add
         </Button>
       </div>
 
@@ -398,6 +403,7 @@ function TransactionsPage() {
 
       <TransactionDetailSheet
         group={detail?.group ?? null}
+        domain={detail?.domain ?? null}
         related={
           detail === null
             ? []
