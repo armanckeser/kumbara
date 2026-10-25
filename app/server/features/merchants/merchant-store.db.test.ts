@@ -10,6 +10,12 @@
 //   5. setDomains() stores the bare host of whatever was pasted, on a KB merchant too (a domain is
 //      presentation, not a verdict), clears with null, skips an unknown key in its count, and rejects a
 //      non-host before writing anything from the batch.
+//   6. autoDomains() takes the site a bank printed in a descriptor; else, when guessing is allowed, a
+//      "<name>.com" whose page title names the merchant AND, where the bank printed a city, whose page
+//      mentions it (a same-named business elsewhere is refused); a plain name ("Pastry") is never guessed.
+//      Each result records its source. Every merchant it looked at is stamped, so a second run looks at
+//      none of them; with guessing off the guessable merchant stays without a domain; a recheck redoes the
+//      lookup's own results and leaves a user's domain alone.
 //   4. suggestedCategories() impact-ranks by transaction COUNT descending — so the top of the worklist is
 //      the merchant whose resolution moves the most of the ledger. Zero-activity unresolved merchants are
 //      omitted (resolving them moves nothing).
@@ -26,6 +32,7 @@ import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { withRollback } from "../test-support/with-rollback";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { MerchantStore, MerchantStoreLayer } from "./merchant-store";
+import { SiteProbe } from "./site-probe";
 import { CategorizationStoreLayer } from "../categorization/categorization-store";
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -44,6 +51,20 @@ if (TEST_DATABASE_URL === undefined) {
   const TestLayer = Layer.mergeAll(
     Layer.provide(MerchantStoreLayer, Layer.mergeAll(CategorizationLayer, SqlLayer)),
   ).pipe(Layer.provideMerge(SqlLayer));
+  // The automatic domain lookup's suite swaps the live site probe for one that knows two sites, so no test
+  // ever reaches the network: Paper Source's page mentions Boston; the only Brewed Awakening site is in
+  // Portland — a same-named business elsewhere.
+  const STUB_PAGES: Record<string, { title: string; html: string }> = {
+    "papersource.com": { title: "Paper Source | Stationery & Gifts", html: "<p>Visit our Boston, MA store</p>" },
+    "brewedawakening.com": { title: "Brewed Awakening Coffee", html: "<p>Roasting in Portland, Oregon</p>" },
+  };
+  const StubProbe = Layer.effect(SiteProbe)(
+    Effect.succeed({ page: (domain: string) => Effect.succeed(STUB_PAGES[domain] ?? null) }),
+  );
+  const ProbeTestLayer = Layer.effect(MerchantStore)(MerchantStore.make).pipe(
+    Layer.provide(Layer.mergeAll(StubProbe, CategorizationLayer, SqlLayer)),
+    Layer.provideMerge(SqlLayer),
+  );
 
   // A unique marker per suite run so seeded merchant_keys / account name never collide with fixture rows.
   const MARK = `p26-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -62,16 +83,17 @@ if (TEST_DATABASE_URL === undefined) {
     return { accountId: accountRows[0].id, categoryId: categoryRows[0].id };
   });
 
-  /** Insert a merchant row with a given source; returns its id. */
+  /** Insert a merchant row with a given source (and optionally a display name); returns its id. */
   const seedMerchant = Effect.fn("seedMerchant")(function* (
     merchantKey: string,
     source: "kb" | "learned" | "unresolved",
+    canonicalName: string = merchantKey,
   ) {
     const sql = yield* SqlClient;
     const rows = yield* sql<{ id: string }>`
       INSERT INTO merchant ${sql.insert({
         merchant_key: merchantKey,
-        canonical_name: merchantKey,
+        canonical_name: canonicalName,
         kind: "merchant",
         source,
       })}
@@ -301,6 +323,106 @@ if (TEST_DATABASE_URL === undefined) {
         Effect.tap(({ tag, domain }) => {
           assert.strictEqual(tag, "InvalidMerchantDomain");
           assert.strictEqual(domain, null);
+          return Effect.void;
+        }),
+      ),
+    );
+  });
+
+  layer(ProbeTestLayer)("MerchantStore.autoDomains (real Postgres, stub site probe)", (it) => {
+    const seedNamed = Effect.fn("seedNamed")(function* (suffix: string, name: string, descriptor: string) {
+      const { accountId } = yield* seedFixtures();
+      const merchantId = yield* seedMerchant(key(suffix), "unresolved", name);
+      const sql = yield* SqlClient;
+      yield* sql`
+        INSERT INTO transaction ${sql.insert({
+          account_id: accountId,
+          amount: "-10.00",
+          description_raw: descriptor,
+          imported_payee: name,
+          merchant_key: key(suffix),
+          merchant_id: merchantId,
+          status: "posted",
+          import_hash: key(`${suffix}-h`),
+        })}
+      `;
+      return merchantId;
+    });
+    const domainsOf = Effect.fn("domainsOf")(function* (ids: readonly string[]) {
+      const sql = yield* SqlClient;
+      const rows = yield* sql<{ id: string; domain: string | null; source: string | null; checked: boolean }>`
+        SELECT id, domain, domain_source AS source, domain_checked_at IS NOT NULL AS checked
+        FROM merchant WHERE ${sql.in("id", ids)}
+      `;
+      return ids.map((id) => {
+        const row = rows.find((candidate) => candidate.id === id);
+        return [row?.domain ?? null, row?.source ?? null, row?.checked ?? false];
+      });
+    });
+
+    it.effect("reads descriptors, verifies guesses, and looks at each merchant once", () =>
+      withRollback(
+        Effect.gen(function* () {
+          const store = yield* MerchantStore;
+          const printed = yield* seedNamed("printed", "Sephora", "AplPay SEPHORA.COM 877-SEPHORA CA");
+          const guessed = yield* seedNamed("guessed", "Paper Source", "PAPER SOURCE 0123 BOSTON MA");
+          const plain = yield* seedNamed("plain", "Pastry", "TST* PASTRY NEW YORK NY");
+          const elsewhere = yield* seedNamed("elsewhere", "Brewed Awakening", "BREWED AWAKENING HOBOKEN NJ");
+          yield* store.autoDomains({ guess: true, limit: 1000 });
+          const after = yield* domainsOf([printed, guessed, plain, elsewhere]);
+          const second = yield* store.autoDomains({ guess: true, limit: 1000 });
+          return { after, secondChecked: second.checked };
+        }),
+      ).pipe(
+        Effect.tap(({ after, secondChecked }) => {
+          assert.deepStrictEqual(after, [
+            ["sephora.com", "descriptor", true],
+            ["papersource.com", "guess", true],
+            [null, null, true],
+            [null, null, true],
+          ]);
+          assert.strictEqual(secondChecked, 0);
+          return Effect.void;
+        }),
+      ),
+    );
+
+    it.effect("recheck redoes the lookup's own results and never a user's", () =>
+      withRollback(
+        Effect.gen(function* () {
+          const store = yield* MerchantStore;
+          const sql = yield* SqlClient;
+          const guessed = yield* seedNamed("re-guess", "Paper Source", "PAPER SOURCE 0123 BOSTON MA");
+          const mine = yield* seedNamed("re-mine", "Paper Source", "PAPER SOURCE 0123 BOSTON MA");
+          yield* store.setDomains({ domains: [{ merchant_key: key("re-mine"), domain: "my-own.example" }] });
+          yield* store.autoDomains({ guess: true, limit: 1000 });
+          // A wrong earlier guess, as the old rules might have left it.
+          yield* sql`UPDATE merchant SET domain = 'wrong.example' WHERE id = ${guessed}`;
+          yield* store.autoDomains({ guess: true, limit: 1000, recheck: true });
+          return yield* domainsOf([guessed, mine]);
+        }),
+      ).pipe(
+        Effect.tap((after) => {
+          assert.deepStrictEqual(after, [
+            ["papersource.com", "guess", true],
+            ["my-own.example", "user", false],
+          ]);
+          return Effect.void;
+        }),
+      ),
+    );
+
+    it.effect("does not guess when guessing is off", () =>
+      withRollback(
+        Effect.gen(function* () {
+          const store = yield* MerchantStore;
+          const guessed = yield* seedNamed("off", "Paper Source", "PAPER SOURCE 0123 BOSTON MA");
+          yield* store.autoDomains({ guess: false, limit: 1000 });
+          return yield* domainsOf([guessed]);
+        }),
+      ).pipe(
+        Effect.tap((after) => {
+          assert.deepStrictEqual(after, [[null, null, true]]);
           return Effect.void;
         }),
       ),

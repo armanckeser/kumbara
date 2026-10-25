@@ -45,6 +45,24 @@ export const setMerchantDomainsRequest = (
     ),
   );
 
+/** One run of the automatic domain lookup (descriptor, then the "<name>.com" guess when allowed).
+ *  `recheck` first forgets the lookup's own past results so they are redone under the current rules. */
+export const autoMerchantDomainsRequest = (
+  guess: boolean,
+  recheck: boolean,
+): Effect.Effect<HttpResult, SqlError, MerchantStore> =>
+  Effect.gen(function* () {
+    const store = yield* MerchantStore;
+    return result(200, yield* store.autoDomains({ guess, limit: AUTO_DOMAIN_LIMIT, recheck }));
+  });
+
+/** How many merchants one lookup run looks at — enough for a sync's new merchants, bounded for a backlog. */
+export const AUTO_DOMAIN_LIMIT = 200;
+
+/** Whether the automatic lookup may guess "<name>.com" (the one step that contacts a merchant's site).
+ *  On unless DOMAIN_GUESS=off. */
+export const domainGuessEnabled = (): boolean => process.env.DOMAIN_GUESS !== "off";
+
 /** The upper bound on the worklist size, so a caller can't ask for the whole 1,234-row table at once (the
  *  pitch's "cap the visible list"). A garbage/absent limit falls back to the default. */
 const MAX_SUGGESTION_LIMIT = 200;

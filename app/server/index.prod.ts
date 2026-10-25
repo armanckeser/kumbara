@@ -16,6 +16,8 @@ import { productionRuntime } from "./runtime.prod";
 import { buildApp, startServer } from "./build-app";
 import { runSync } from "./features/ingestion/sync";
 import { QuoteStore } from "./features/quotes/quote-store";
+import { MerchantStore } from "./features/merchants/merchant-store";
+import { AUTO_DOMAIN_LIMIT, domainGuessEnabled } from "./features/merchants/router";
 
 startServer(buildApp(productionRuntime));
 
@@ -47,6 +49,18 @@ if (SYNC_INTERVAL_MINUTES > 0) {
     if (refresh !== null) {
       yield* Effect.log(
         `scheduled quote refresh: ${refresh.positions_updated} positions repriced, ${refresh.snapshots_captured} snapshots captured, ${refresh.symbols_skipped.length} symbols skipped`,
+      );
+    }
+    // Merchant logos: look up domains for the merchants this sync introduced (descriptor first, then a
+    // verified "<name>.com" guess unless DOMAIN_GUESS=off). Isolated like the quote refresh — a slow or
+    // unreachable site never marks the sync failed.
+    const merchantStore = yield* MerchantStore;
+    const domains = yield* merchantStore
+      .autoDomains({ guess: domainGuessEnabled(), limit: AUTO_DOMAIN_LIMIT })
+      .pipe(Effect.catchCause((cause) => Effect.logError("scheduled domain lookup failed", cause).pipe(Effect.as(null))));
+    if (domains !== null) {
+      yield* Effect.log(
+        `scheduled domain lookup: ${domains.checked} checked, ${domains.from_descriptor} from descriptors, ${domains.from_guess} from guesses`,
       );
     }
   }).pipe(

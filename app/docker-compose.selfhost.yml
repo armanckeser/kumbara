@@ -38,6 +38,9 @@ services:
       OIDC_SCOPES: ${OIDC_SCOPES:-openid email profile}
       # SimpleFIN allows 24 pulls a day; one scheduled pull a day leaves room for "Sync now".
       SYNC_INTERVAL_MINUTES: ${SYNC_INTERVAL_MINUTES:-1440}
+      # Merchant logos: after each sync, guess "<name>.com" for new merchants and keep it when the site's
+      # title names the merchant. "off" keeps the lookup to what the bank printed (no request leaves).
+      DOMAIN_GUESS: ${DOMAIN_GUESS:-on}
       TZ: ${TZ:-UTC}
     depends_on:
       postgres:

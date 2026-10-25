@@ -15,6 +15,11 @@
 //                           The browser renders + confirms the suggestion; it never decides one (R2).
 //   setDomains(body)      — set (or clear) merchants' website domains, the source of their logos. Any
 //                           source, KB rows included: a domain is presentation, not a categorization verdict.
+//   autoDomains(options)  — find domains on its own for merchants nobody has looked at: the site a bank
+//                           printed in a descriptor, else (when allowed) a "<name>.com" whose page title
+//                           names the merchant and whose page mentions the merchant's city. Each merchant
+//                           is looked at once (domain_checked_at); `recheck` redoes its own past results
+//                           (domain_source descriptor/guess), never a user's or the KB's.
 //
 // Every decision lives on the server. domain/categorization.rankCandidates DECIDES the suggested category;
 // this interpreter only feeds it DB rows and writes the user's confirmed choice.
@@ -23,7 +28,15 @@ import { Context, Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { CategoryId, MerchantId, MerchantKey } from "../../../domain/common";
 import { MerchantKind } from "../../../domain/normalization";
-import { normalizeDomain } from "../../../domain/merchant-domain";
+import {
+  domainFromDescriptor,
+  guessableName,
+  normalizeDomain,
+  pageMentionsCity,
+  titleNamesMerchant,
+} from "../../../domain/merchant-domain";
+import { placeOf } from "../../../domain/inbox-context";
+import { SiteProbe, SiteProbeLive } from "./site-probe";
 import { InvalidMerchantDomain } from "./errors";
 import {
   rankCandidates,
@@ -94,6 +107,26 @@ export interface SetDomainsResult {
 
 const decodeSetDomains = Schema.decodeUnknownEffect(SetMerchantDomains);
 
+/** autoDomains() options. `guess` allows the "<name>.com" lookup, the one step that leaves the server;
+ *  `limit` bounds how many merchants one run looks at; `recheck` first forgets the lookup's own past
+ *  results (and its "found nothing" stamps) so they are looked at again under the current rules. */
+export interface AutoDomainOptions {
+  readonly guess: boolean;
+  readonly limit: number;
+  readonly recheck?: boolean;
+}
+
+/** autoDomains() result: how many merchants were looked at, and how many got a domain from each source. */
+export interface AutoDomainResult {
+  readonly txid: number;
+  readonly checked: number;
+  readonly from_descriptor: number;
+  readonly from_guess: number;
+}
+
+/** How many site lookups run at once. */
+const GUESS_CONCURRENCY = 4;
+
 /** A merchant's per-transaction facts row for the suggestion ranker (the join the engine needs). One
  *  representative row per merchant is enough to propose the KB/keyword-derived default (the fields the
  *  ranker reads are merchant-stable, not per-row). */
@@ -114,6 +147,7 @@ export class MerchantStore extends Context.Service<MerchantStore>()("kumbara/mer
     // + POS rules / historical frequency) so it proposes exactly what triage would — one home for the
     // ranking policy (R2), no second copy of the provider stack.
     const categorization = yield* CategorizationStore;
+    const probe = yield* SiteProbe;
 
     // pg_current_xact_id() must be read INSIDE the write transaction so Electric can match the streamed
     // change to the txid the client is waiting on.
@@ -250,7 +284,8 @@ export class MerchantStore extends Context.Service<MerchantStore>()("kumbara/mer
           let updated = 0;
           for (const write of writes) {
             const rows = yield* sql<{ id: string }>`
-              UPDATE merchant SET domain = ${write.domain}, updated_at = NOW()
+              UPDATE merchant SET domain = ${write.domain},
+                domain_source = ${write.domain === null ? null : "user"}, updated_at = NOW()
               WHERE merchant_key = ${write.merchant_key}
               RETURNING id
             `;
@@ -261,7 +296,83 @@ export class MerchantStore extends Context.Service<MerchantStore>()("kumbara/mer
       );
     });
 
-    return { resolve, suggestedCategories, setDomains } as const;
+    /**
+     * Look up domains for merchants nobody has looked at yet (domain IS NULL, never checked, with at least
+     * one transaction). The decisions are domain/merchant-domain.ts's; this reads descriptors, asks the
+     * probe for page titles, and stamps every merchant it looked at so the next run moves on.
+     */
+    const autoDomains = Effect.fn("MerchantStore.autoDomains")(function* (options: AutoDomainOptions) {
+      if (options.recheck === true) {
+        yield* sql`
+          UPDATE merchant SET domain = NULL, domain_source = NULL, domain_checked_at = NULL
+          WHERE domain_source IN ('descriptor', 'guess') OR (domain IS NULL AND domain_checked_at IS NOT NULL)
+        `;
+      }
+      const merchants = yield* sql<{ id: string; canonical_name: string; descriptors: string[] | null }>`
+        SELECT m.id, m.canonical_name,
+          (SELECT array_agg(d.description_raw) FROM (
+             SELECT DISTINCT t.description_raw FROM transaction t
+             WHERE t.merchant_id = m.id AND t.description_raw IS NOT NULL LIMIT 10
+           ) d) AS descriptors
+        FROM merchant m
+        WHERE m.domain IS NULL AND m.domain_checked_at IS NULL AND m.kind = 'merchant'
+          AND EXISTS (SELECT 1 FROM transaction t WHERE t.merchant_id = m.id)
+        ORDER BY m.created_at
+        LIMIT ${options.limit}
+      `;
+      const found = yield* Effect.forEach(
+        merchants,
+        (merchant) =>
+          Effect.gen(function* () {
+            for (const descriptor of merchant.descriptors ?? []) {
+              const domain = domainFromDescriptor(descriptor, merchant.canonical_name);
+              if (domain !== null) return { id: merchant.id, domain, from: "descriptor" as const };
+            }
+            const candidate = options.guess ? guessableName(merchant.canonical_name) : null;
+            if (candidate !== null) {
+              // Where the bank printed a city, the site must mention it: a same-named business elsewhere
+              // (another "Brewed Awakening") is the common wrong match for a local place.
+              const place =
+                (merchant.descriptors ?? [])
+                  .map((descriptor) => placeOf(descriptor, merchant.canonical_name))
+                  .find((found) => found !== null) ?? null;
+              const page = yield* probe.page(candidate);
+              if (
+                page !== null &&
+                titleNamesMerchant(merchant.canonical_name, page.title) &&
+                (place === null || pageMentionsCity(page.html, place.city))
+              ) {
+                return { id: merchant.id, domain: candidate, from: "guess" as const };
+              }
+            }
+            return { id: merchant.id, domain: null, from: null };
+          }),
+        { concurrency: GUESS_CONCURRENCY },
+      );
+      return yield* sql.withTransaction(
+        Effect.gen(function* () {
+          const txid = yield* currentTxid();
+          for (const result of found) {
+            // COALESCE: a domain someone wrote while this run was looking wins.
+            yield* sql`
+              UPDATE merchant SET
+                domain_source = CASE WHEN domain IS NULL THEN ${result.from} ELSE domain_source END,
+                domain = COALESCE(domain, ${result.domain}),
+                domain_checked_at = NOW(), updated_at = NOW()
+              WHERE id = ${result.id}
+            `;
+          }
+          return {
+            txid,
+            checked: found.length,
+            from_descriptor: found.filter((result) => result.from === "descriptor").length,
+            from_guess: found.filter((result) => result.from === "guess").length,
+          } satisfies AutoDomainResult;
+        }),
+      );
+    });
+
+    return { resolve, suggestedCategories, setDomains, autoDomains } as const;
   }),
 }) {}
 
@@ -294,4 +405,8 @@ export const factsOf = (row: {
  *  the ledger; the router clamps a caller-supplied limit into a sane range. */
 export const DEFAULT_SUGGESTION_LIMIT = 50;
 
-export const MerchantStoreLayer = Layer.effect(MerchantStore)(MerchantStore.make);
+// The live site probe is composed in here, so every consumer keeps providing just CategorizationStore +
+// SQL; a test provides its own SiteProbe to MerchantStore.make instead.
+export const MerchantStoreLayer = Layer.effect(MerchantStore)(MerchantStore.make).pipe(
+  Layer.provide(SiteProbeLive),
+);

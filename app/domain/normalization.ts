@@ -203,6 +203,7 @@ export class MerchantKbEntry extends Schema.Class<MerchantKbEntry>(
   kind: MerchantKind,
   mcc: Schema.optionalKey(Schema.Number),
   aliases: Schema.optionalKey(Schema.Array(MerchantKey)),
+  domain: Schema.optionalKey(Schema.String), // the brand's website host (its logo); never overrides one a user set
 }) {}
 
 // ---------- resolution result ----------

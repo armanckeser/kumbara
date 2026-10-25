@@ -52,6 +52,8 @@ export class MerchantKbSync extends Context.Service<MerchantKbSync>()(
             default_category_id: categoryId,
             kind: entry.kind,
             mcc: entry.mcc ?? null,
+            domain: entry.domain ?? null,
+            domain_source: entry.domain === undefined ? null : "kb",
             source: "kb",
           })}
           ON CONFLICT (merchant_key) DO UPDATE SET
@@ -59,6 +61,10 @@ export class MerchantKbSync extends Context.Service<MerchantKbSync>()(
             default_category_id = EXCLUDED.default_category_id,
             kind = EXCLUDED.kind,
             mcc = EXCLUDED.mcc,
+            -- A domain someone already set (user, agent, or an earlier lookup) wins over the bundled one.
+            domain_source = CASE WHEN merchant.domain IS NULL THEN EXCLUDED.domain_source
+                                 ELSE merchant.domain_source END,
+            domain = COALESCE(merchant.domain, EXCLUDED.domain),
             source = 'kb'
         `;
       });

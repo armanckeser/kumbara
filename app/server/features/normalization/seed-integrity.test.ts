@@ -22,6 +22,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { loadSeedAssets } from "./seed-loader";
+import { normalizeDomain } from "../../../domain/merchant-domain";
 
 const PlatformLayer = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 
@@ -111,6 +112,20 @@ describe("merchant KB seed integrity", () => {
             seen.add(entry.key);
           }
           assert.deepStrictEqual(duplicates, []);
+        }),
+      ),
+    ));
+
+  it("test_every_domain_is_a_bare_host", () =>
+    Effect.runPromise(
+      loadKb.pipe(
+        Effect.map((kb) => {
+          // Negative case: a domain written as a URL ("https://www.x.com/") or with "www." would be stored
+          // as-is by sync and never match what the API writes for the same site.
+          const bad = kb
+            .filter((entry) => entry.domain !== undefined && normalizeDomain(entry.domain) !== entry.domain)
+            .map((entry) => `${entry.key}: ${entry.domain}`);
+          assert.deepStrictEqual(bad, []);
         }),
       ),
     ));

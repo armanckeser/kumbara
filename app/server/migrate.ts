@@ -52,6 +52,8 @@ import migration0260 from "./migrations/0260_equity_by_security";
 import migration0270 from "./migrations/0270_merchant_category_policy";
 import migration0280 from "./migrations/0280_instance_secret";
 import migration0290 from "./migrations/0290_merchant_domain";
+import migration0300 from "./migrations/0300_merchant_domain_checked";
+import migration0310 from "./migrations/0310_merchant_domain_source";
 
 const DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://postgres:password@localhost:5433/app";
 
@@ -150,6 +152,10 @@ export const loader = PgMigrator.fromRecord({
   "280_instance_secret": migration0280,
   // merchant.domain — the website host the inbox draws a merchant's logo from. Above the mark (280).
   "290_merchant_domain": migration0290,
+  // merchant.domain_checked_at — when the automatic domain lookup last looked at a merchant. Above the mark (290).
+  "300_merchant_domain_checked": migration0300,
+  // merchant.domain_source — user / kb / descriptor / guess, so the lookup can redo only its own. Above the mark (300).
+  "310_merchant_domain_source": migration0310,
 });
 
 const program = PgMigrator.run({ loader }).pipe(

@@ -62,6 +62,8 @@ import {
   clampSuggestionLimit,
   mergeMerchantsRequest,
   resolveMerchantsRequest,
+  autoMerchantDomainsRequest,
+  domainGuessEnabled,
   setMerchantDomainsRequest,
   suggestedResolutionsRequest,
 } from "./features/merchants/router";
@@ -460,6 +462,16 @@ export function buildApp<ER>(runtime: ManagedRuntime.ManagedRuntime<AppServices,
   // its host; a non-host is a 400 and nothing is written. Body: { domains: [{ merchant_key, domain|null }] }.
   app.post("/api/merchants/domain", async (context) =>
     respond(context, runResult(runtime, setMerchantDomainsRequest(await context.req.json()))),
+  );
+
+  // Look up domains for merchants nobody has looked at: the site a bank printed in a descriptor, else a
+  // "<name>.com" whose page title names the merchant (unless DOMAIN_GUESS=off). Also runs after each
+  // scheduled sync. No body; `?recheck=1` redoes the lookup's own past results (never a user's or the KB's).
+  app.post("/api/merchants/auto-domain", (context) =>
+    respond(
+      context,
+      runResult(runtime, autoMerchantDomainsRequest(domainGuessEnabled(), context.req.query("recheck") === "1")),
+    ),
   );
 
   // Impact-ranked unresolved merchants (most transactions first) with a server-proposed default category

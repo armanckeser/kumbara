@@ -81,9 +81,13 @@ curl -X POST http://localhost:4000/api/rules/categorize/<rule id> \
 `merchant.category_policy` (`single` | `varies`) is readable via agent_reader.
 
 ## Merchant logos (website domains)
-A merchant's logo is its site's favicon, drawn from `merchant.domain`. The feed never carries a domain, so
-look merchants up (name + city from the descriptor, never amounts) and write what you find. A pasted URL is
-reduced to its host; a non-host fails the whole batch with a 400.
+A merchant's logo is its site's favicon, drawn from `merchant.domain`. The feed has no URL field. After each
+scheduled sync the server fills what it can by itself (`POST /api/merchants/auto-domain` runs it on demand):
+the site a bank printed in a descriptor, a bundled KB domain, or a "<name>.com" whose title names the
+merchant and whose page mentions the city the bank printed (`DOMAIN_GUESS=off` disables the guess;
+`?recheck=1` redoes the lookup's own results, never yours). For the rest, look merchants up (name + city
+from the descriptor, never amounts) and write what you find. A pasted URL is reduced to its host; a non-host fails
+the whole batch with a 400.
 ```bash
 # Merchants seen in the last 90 days that have no domain yet, busiest first:
 PGPASSWORD=readonly psql -h localhost -p 5433 -U agent_reader -d app -c "
