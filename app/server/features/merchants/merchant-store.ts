@@ -6,13 +6,15 @@
 // now, the user could SEE it but not ACT on it. This store is the missing inverse of that read-only view:
 // the write that turns an unresolved merchant into a resolved one.
 //
-// Two responsibilities, both source-blind (same graph runs fixture + live, R9):
+// Three responsibilities, all source-blind (same graph runs fixture + live, R9):
 //   resolve(body)         — set default_category_id (and optionally canonical_name / kind) on one or many
 //                           merchants and flip an `unresolved` row to `learned`. Idempotent; NEVER downgrades
 //                           a shipped KB row (a `kb` merchant is left untouched — see the guard below).
 //   suggestedCategories() — the server aggregate that impact-ranks unresolved merchants and, for each,
 //                           runs the SAME pure ranker the triage inbox uses to propose a default category.
 //                           The browser renders + confirms the suggestion; it never decides one (R2).
+//   setDomains(body)      — set (or clear) merchants' website domains, the source of their logos. Any
+//                           source, KB rows included: a domain is presentation, not a categorization verdict.
 //
 // Every decision lives on the server. domain/categorization.rankCandidates DECIDES the suggested category;
 // this interpreter only feeds it DB rows and writes the user's confirmed choice.
@@ -21,6 +23,8 @@ import { Context, Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import { CategoryId, MerchantId, MerchantKey } from "../../../domain/common";
 import { MerchantKind } from "../../../domain/normalization";
+import { normalizeDomain } from "../../../domain/merchant-domain";
+import { InvalidMerchantDomain } from "./errors";
 import {
   rankCandidates,
   type CandidateCategory,
@@ -70,6 +74,25 @@ export interface SuggestedResolution {
 }
 
 const decodeResolve = Schema.decodeUnknownEffect(ResolveMerchants);
+
+/** Set or clear the website domain of one or many merchants, by merchant_key (what an agent reading the
+ *  ledger has in hand). `domain` may be a pasted URL; it is reduced to its bare host. null clears it. */
+export class SetMerchantDomains extends Schema.Class<SetMerchantDomains>("kumbara/merchants/SetMerchantDomains")({
+  domains: Schema.Array(
+    Schema.Struct({
+      merchant_key: MerchantKey,
+      domain: Schema.NullOr(Schema.String),
+    }),
+  ),
+}) {}
+
+/** setDomains() result: the txid + how many merchants were updated (an unknown key is skipped). */
+export interface SetDomainsResult {
+  readonly txid: number;
+  readonly updated: number;
+}
+
+const decodeSetDomains = Schema.decodeUnknownEffect(SetMerchantDomains);
 
 /** A merchant's per-transaction facts row for the suggestion ranker (the join the engine needs). One
  *  representative row per merchant is enough to propose the KB/keyword-derived default (the fields the
@@ -203,7 +226,42 @@ export class MerchantStore extends Context.Service<MerchantStore>()("kumbara/mer
       );
     });
 
-    return { resolve, suggestedCategories } as const;
+    /**
+     * Set or clear website domains in ONE transaction. Every domain is normalized first and the whole
+     * request fails (no write) if any is not a host, so a typo never lands half a batch.
+     */
+    const setDomains = Effect.fn("MerchantStore.setDomains")(function* (body: unknown) {
+      const input = yield* decodeSetDomains(body);
+      const writes: Array<{ readonly merchant_key: string; readonly domain: string | null }> = [];
+      for (const entry of input.domains) {
+        if (entry.domain === null) {
+          writes.push({ merchant_key: entry.merchant_key, domain: null });
+          continue;
+        }
+        const domain = normalizeDomain(entry.domain);
+        if (domain === null) {
+          return yield* new InvalidMerchantDomain({ merchant_key: entry.merchant_key, domain: entry.domain });
+        }
+        writes.push({ merchant_key: entry.merchant_key, domain });
+      }
+      return yield* sql.withTransaction(
+        Effect.gen(function* () {
+          const txid = yield* currentTxid();
+          let updated = 0;
+          for (const write of writes) {
+            const rows = yield* sql<{ id: string }>`
+              UPDATE merchant SET domain = ${write.domain}, updated_at = NOW()
+              WHERE merchant_key = ${write.merchant_key}
+              RETURNING id
+            `;
+            updated += rows.length;
+          }
+          return { txid, updated } satisfies SetDomainsResult;
+        }),
+      );
+    });
+
+    return { resolve, suggestedCategories, setDomains } as const;
   }),
 }) {}
 

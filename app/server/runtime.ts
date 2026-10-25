@@ -26,6 +26,7 @@ import { MerchantKbSync, MerchantKbSyncLayer } from "./features/normalization/kb
 import { MerchantResolver, MerchantResolverLayer } from "./features/normalization/merchant-resolver";
 import { LinksStore, LinksStoreLayer } from "./features/links/links-store";
 import { BudgetStore, BudgetStoreLayer } from "./features/budget/budget-store";
+import { InboxStore, InboxStoreLayer } from "./features/inbox/inbox-store";
 import { CategorizationStore, CategorizationStoreLayer } from "./features/categorization/categorization-store";
 import { MerchantStore, MerchantStoreLayer } from "./features/merchants/merchant-store";
 import { MerchantMergeStore, MerchantMergeStoreLayer } from "./features/merchants/merge-store";
@@ -73,6 +74,8 @@ const LinksLayer = Layer.provide(LinksStoreLayer, PlatformLayer);
 // BudgetStore is SQL-only: it reads the period's rows + targets and delegates the 50/30/20 math to the
 // pure domain.computeBudget. No seed files, so it needs only the SQL capability.
 const BudgetLayer = Layer.provide(BudgetStoreLayer, SqlLayer);
+// InboxStore is SQL-only: it loads the rows the pure recall cues (domain/inbox-context.ts) read.
+const InboxLayer = Layer.provide(InboxStoreLayer, SqlLayer);
 // CategorizationStore reads the keyword seed (Platform) at construction and the transaction/merchant/memory
 // tables (SQL) per call, delegating every ranking decision to the pure domain.categorization. Same seed
 // seam as the resolver; SQL is provided by the merged AppLayer below.
@@ -149,6 +152,7 @@ const AppLayer = Layer.mergeAll(
   ResolverLayer,
   LinksLayer,
   BudgetLayer,
+  InboxLayer,
   CategorizationLayer,
   MerchantLayer,
   MerchantMergeLayer,
@@ -167,4 +171,4 @@ const AppLayer = Layer.mergeAll(
 export const runtime = ManagedRuntime.make(AppLayer);
 
 // Re-export the service tags so handlers can yield them without reaching into feature folders.
-export { AccountStore, FeedSource, IngestStore, TransactionStore, SettingsStore, Connector, OnboardingStore, AnonymizeStore, MerchantKbSync, MerchantResolver, LinksStore, BudgetStore, CategorizationStore, MerchantStore, MerchantMergeStore, CategoryStore, PushSubscriptionStore, RecurringStore, LineageStore, EquityStore, HoldingStore, SyntheticLegStore, PaycheckStore, RulesStore, QuoteStore, PortfolioSnapshotStore };
+export { AccountStore, FeedSource, IngestStore, TransactionStore, SettingsStore, Connector, OnboardingStore, AnonymizeStore, MerchantKbSync, MerchantResolver, LinksStore, BudgetStore, InboxStore, CategorizationStore, MerchantStore, MerchantMergeStore, CategoryStore, PushSubscriptionStore, RecurringStore, LineageStore, EquityStore, HoldingStore, SyntheticLegStore, PaycheckStore, RulesStore, QuoteStore, PortfolioSnapshotStore };

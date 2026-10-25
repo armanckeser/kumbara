@@ -29,6 +29,7 @@ import type {
   MerchantResolver,
   LinksStore,
   BudgetStore,
+  InboxStore,
   CategorizationStore,
   MerchantStore,
   MerchantMergeStore,
@@ -61,6 +62,7 @@ import {
   clampSuggestionLimit,
   mergeMerchantsRequest,
   resolveMerchantsRequest,
+  setMerchantDomainsRequest,
   suggestedResolutionsRequest,
 } from "./features/merchants/router";
 import {
@@ -99,6 +101,7 @@ import {
   triageCandidatesBatchRequest,
   triageCandidatesRequest,
 } from "./features/categorization/router";
+import { inboxContextRequest } from "./features/inbox/router";
 import {
   createCategoryRequest,
   deleteCategoryRequest,
@@ -231,6 +234,7 @@ type AppServices =
   | MerchantResolver
   | LinksStore
   | BudgetStore
+  | InboxStore
   | CategorizationStore
   | MerchantStore
   | MerchantMergeStore
@@ -452,6 +456,12 @@ export function buildApp<ER>(runtime: ManagedRuntime.ManagedRuntime<AppServices,
     respond(context, runResult(runtime, resolveMerchantsRequest(await context.req.json()))),
   );
 
+  // Set or clear merchants' website domains — what their logos are drawn from. A pasted URL is reduced to
+  // its host; a non-host is a 400 and nothing is written. Body: { domains: [{ merchant_key, domain|null }] }.
+  app.post("/api/merchants/domain", async (context) =>
+    respond(context, runResult(runtime, setMerchantDomainsRequest(await context.req.json()))),
+  );
+
   // Impact-ranked unresolved merchants (most transactions first) with a server-proposed default category
   // each (the SAME ranker triage uses — R2). `?limit=` bounds the worklist (default 50, clamped). Powers
   // the Merchants "Resolve" worklist: a one-tap confirm per merchant instead of a blank form.
@@ -645,6 +655,12 @@ export function buildApp<ER>(runtime: ManagedRuntime.ManagedRuntime<AppServices,
   // connection-pool-saturating fan-out. Body: { groups: [{ key, ids: string[] }], person_id }.
   app.post("/api/triage/candidates-batch", async (context) =>
     respond(context, runResult(runtime, triageCandidatesBatchRequest(await context.req.json()))),
+  );
+
+  // The inbox's recall cues (place, trip, business kind, same-day charges) for every card in ONE round-trip.
+  // Body: { groups: [{ key, ids: string[] }] } — each group's first id is its newest row.
+  app.post("/api/inbox/context", async (context) =>
+    respond(context, runResult(runtime, inboxContextRequest(await context.req.json()))),
   );
 
   // Sweep a month's leftover uncategorized spend into one category — the budget board's "put the rest in

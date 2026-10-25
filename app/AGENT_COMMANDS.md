@@ -80,6 +80,25 @@ curl -X POST http://localhost:4000/api/rules/categorize/<rule id> \
 ```
 `merchant.category_policy` (`single` | `varies`) is readable via agent_reader.
 
+## Merchant logos (website domains)
+A merchant's logo is its site's favicon, drawn from `merchant.domain`. The feed never carries a domain, so
+look merchants up (name + city from the descriptor, never amounts) and write what you find. A pasted URL is
+reduced to its host; a non-host fails the whole batch with a 400.
+```bash
+# Merchants seen in the last 90 days that have no domain yet, busiest first:
+PGPASSWORD=readonly psql -h localhost -p 5433 -U agent_reader -d app -c "
+  SELECT m.merchant_key, m.canonical_name, count(*) AS txns, max(t.description_raw) AS sample
+  FROM merchant m JOIN transaction t ON t.merchant_id = m.id
+  WHERE m.domain IS NULL AND t.status <> 'void' AND t.posted_at > now() - interval '90 days'
+    AND m.kind = 'merchant'
+  GROUP BY 1, 2 ORDER BY txns DESC;"
+
+# Set (or clear with null) domains in one call:
+curl -X POST http://localhost:4000/api/merchants/domain \
+  -H "Content-Type: application/json" \
+  -d '{"domains":[{"merchant_key":"<key>","domain":"example.com"},{"merchant_key":"<key>","domain":null}]}'
+```
+
 ## Equity grants (RSU tracking for stock-plan accounts)
 Reads stream over Electric / agent_reader (`equity_grant`, `equity_tranche`); writes go through the API.
 The feed prices everything (account balance = sellable value; plan holding market_value = total value);

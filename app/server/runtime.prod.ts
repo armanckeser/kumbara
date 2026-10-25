@@ -23,6 +23,7 @@ import { MerchantKbSyncLayer } from "./features/normalization/kb-sync";
 import { MerchantResolverLayer } from "./features/normalization/merchant-resolver";
 import { LinksStoreLayer } from "./features/links/links-store";
 import { BudgetStoreLayer } from "./features/budget/budget-store";
+import { InboxStoreLayer } from "./features/inbox/inbox-store";
 import { CategorizationStoreLayer } from "./features/categorization/categorization-store";
 import { MerchantStoreLayer } from "./features/merchants/merchant-store";
 import { MerchantMergeStoreLayer } from "./features/merchants/merge-store";
@@ -60,6 +61,7 @@ const KbSyncLayer = Layer.provide(MerchantKbSyncLayer, PlatformLayer);
 const ResolverLayer = Layer.provide(MerchantResolverLayer, PlatformLayer);
 const LinksLayer = Layer.provide(LinksStoreLayer, PlatformLayer);
 const BudgetLayer = Layer.provide(BudgetStoreLayer, SqlLayer);
+const InboxLayer = Layer.provide(InboxStoreLayer, SqlLayer);
 const CategorizationLayer = Layer.provide(CategorizationStoreLayer, PlatformLayer);
 // TransactionStore (Pitch 16) fans a Disposition out to category + link confirmation + the exclusion
 // mirror, and (Pitch 25) also uses MerchantResolver for a manual create's import_hash, so it needs
@@ -109,6 +111,7 @@ const AppLayer = Layer.mergeAll(
   ResolverLayer,
   LinksLayer,
   BudgetLayer,
+  InboxLayer,
   CategorizationLayer,
   MerchantLayer,
   MerchantMergeLayer,

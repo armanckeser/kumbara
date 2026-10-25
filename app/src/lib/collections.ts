@@ -170,6 +170,8 @@ export type Merchant = {
   transfer_override: "confirmed_spending" | null;
   mcc: number | null;
   logo: string | null;
+  /** The merchant's website host, the source of its logo (favicon); null until someone looks it up. */
+  domain: string | null;
   source: "kb" | "learned" | "unresolved";
   created_at: string;
   updated_at: string;

@@ -9,6 +9,12 @@ export class InvalidMerge extends Schema.TaggedErrorClass<InvalidMerge>("kumbara
   { reason: Schema.String },
 ) {}
 
+/** A domain write named something that is not a website host ("riverside bistro"). Rejected before any
+ *  write, so the column only ever holds a bare host. */
+export class InvalidMerchantDomain extends Schema.TaggedErrorClass<InvalidMerchantDomain>(
+  "kumbara/merchants/InvalidMerchantDomain",
+)("InvalidMerchantDomain", { merchant_key: Schema.String, domain: Schema.String }) {}
+
 /** A merge named a winner merchant id that does not exist (stale client). A merge into a ghost is a client
  *  error, not silent data loss, so it fails rather than dropping the losers. */
 export class MergeMerchantNotFound extends Schema.TaggedErrorClass<MergeMerchantNotFound>(

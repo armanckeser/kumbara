@@ -27,6 +27,24 @@ export const resolveMerchantsRequest = (
     ),
   );
 
+/** Set or clear merchants' website domains (their logos). Bad body or a non-host domain -> 400. */
+export const setMerchantDomainsRequest = (
+  body: unknown,
+): Effect.Effect<HttpResult, SqlError, MerchantStore> =>
+  Effect.gen(function* () {
+    const store = yield* MerchantStore;
+    return result(200, yield* store.setDomains(body));
+  }).pipe(
+    Effect.catchTag("SchemaError", (error) =>
+      Effect.succeed(result(400, { error: "invalid merchant-domain request", detail: error.message })),
+    ),
+    Effect.catchTag("InvalidMerchantDomain", (error) =>
+      Effect.succeed(
+        result(400, { error: "not a website domain", merchant_key: error.merchant_key, domain: error.domain }),
+      ),
+    ),
+  );
+
 /** The upper bound on the worklist size, so a caller can't ask for the whole 1,234-row table at once (the
  *  pitch's "cap the visible list"). A garbage/absent limit falls back to the default. */
 const MAX_SUGGESTION_LIMIT = 200;

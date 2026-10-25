@@ -13,6 +13,13 @@
 // and cycle-free. When VITE_DEMO is unset this whole module is tree-shaken out (api.ts's demo branches are
 // statically dead).
 
+import {
+  businessKindOf,
+  placeOf,
+  regularPlacesOf,
+  tripOf,
+  type InboxContext,
+} from "../../../domain/inbox-context";
 import { stitchLineage, type LineageDetailResponse } from "../../../domain/lineage";
 import type { TriageChip } from "../../features/transactions/use-triage";
 import { demoBudgetHistory, demoBudgetSummary } from "./budget-fixture";
@@ -59,7 +66,9 @@ export async function demoGet<T = unknown>(path: string): Promise<T> {
 export async function demoPost<T = unknown>(path: string, body: unknown): Promise<T> {
   switch (routeOf(path)) {
     case "triage/candidates-batch":
-      return demoCandidates(body) as T;
+      return (await demoCandidates(body)) as T;
+    case "inbox/context":
+      return (await demoInboxContext(body)) as T;
     case "categorization/set-category":
       await applySetCategory(body);
       return { txid: 0, past_uncategorized: [], rule_questions: [] } as T;
@@ -86,11 +95,58 @@ interface CandidatesBody {
   readonly groups: ReadonlyArray<{ readonly key: string; readonly ids: readonly string[] }>;
 }
 
-function demoCandidates(body: unknown): { chips_by_key: Record<string, readonly TriageChip[]> } {
+// The demo's PayPal marketplace cohort guesses Shopping first, so the inbox's best guesses aren't one
+// category everywhere.
+const DEMO_SHOPPING_FIRST: readonly TriageChip[] = [DEMO_CHIPS[2], DEMO_CHIPS[1], DEMO_CHIPS[0]];
+
+async function demoCandidates(body: unknown): Promise<{ chips_by_key: Record<string, readonly TriageChip[]> }> {
   const { groups } = body as CandidatesBody;
+  const { transactionCollection } = await import("../collections");
   const chips_by_key: Record<string, readonly TriageChip[]> = {};
-  for (const group of groups) chips_by_key[group.key] = DEMO_CHIPS;
+  for (const group of groups) {
+    const front = group.ids.length > 0 ? transactionCollection.get(group.ids[0]) : undefined;
+    chips_by_key[group.key] = front?.merchant_key === "marketplace" ? DEMO_SHOPPING_FIRST : DEMO_CHIPS;
+  }
   return { chips_by_key };
+}
+
+// The inbox's recall cues, computed from the local collection with the SAME pure domain functions the
+// server's InboxStore runs, so the demo's trip band and same-day chips match what the real app would show.
+async function demoInboxContext(body: unknown): Promise<{ context_by_key: Record<string, InboxContext> }> {
+  const { groups } = body as CandidatesBody;
+  const { merchantCollection, transactionCollection } = await import("../collections");
+  const domainOf = new Map(Array.from(merchantCollection.values()).map((merchant) => [merchant.id, merchant.domain]));
+  const rows = Array.from(transactionCollection.values())
+    .filter((row) => row.status !== "void")
+    .map((row) => ({
+      id: row.id,
+      payee: row.payee ?? "",
+      raw: row.description_raw ?? "",
+      day: (row.posted_at ?? "").slice(0, 10),
+      amount: Number.parseFloat(row.amount),
+      domain: row.merchant_id !== null ? (domainOf.get(row.merchant_id) ?? null) : null,
+    }));
+  const placed = rows.map((row) => ({ place: placeOf(row.raw, row.payee), payee: row.payee, day: row.day }));
+  const regular = regularPlacesOf(placed);
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const context_by_key: Record<string, InboxContext> = {};
+  for (const group of groups) {
+    const front = group.ids.length > 0 ? byId.get(group.ids[0]) : undefined;
+    if (front === undefined) continue;
+    const place = placeOf(front.raw, front.payee);
+    context_by_key[group.key] = {
+      place: place === null ? null : `${place.city}, ${place.state}`,
+      trip: tripOf({ place, payee: front.payee, day: front.day }, placed, regular),
+      kind: businessKindOf(front.payee, front.raw),
+      domain: front.domain,
+      same_day: rows
+        .filter((row) => row.day === front.day && !group.ids.includes(row.id))
+        .map((row) => ({ payee: row.payee, amount: row.amount, kind: businessKindOf(row.payee, row.raw), domain: row.domain }))
+        .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+        .slice(0, 3),
+    };
+  }
+  return { context_by_key };
 }
 
 interface SetCategoryBody {

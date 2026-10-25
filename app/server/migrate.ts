@@ -51,6 +51,7 @@ import migration0250 from "./migrations/0250_p2p_rails";
 import migration0260 from "./migrations/0260_equity_by_security";
 import migration0270 from "./migrations/0270_merchant_category_policy";
 import migration0280 from "./migrations/0280_instance_secret";
+import migration0290 from "./migrations/0290_merchant_domain";
 
 const DATABASE_URL = process.env.DATABASE_URL ?? "postgresql://postgres:password@localhost:5433/app";
 
@@ -147,6 +148,8 @@ export const loader = PgMigrator.fromRecord({
   "270_merchant_category_policy": migration0270,
   // instance_secret: what a self-hosted install generates for itself on first boot (server/boot.ts).
   "280_instance_secret": migration0280,
+  // merchant.domain — the website host the inbox draws a merchant's logo from. Above the mark (280).
+  "290_merchant_domain": migration0290,
 });
 
 const program = PgMigrator.run({ loader }).pipe(

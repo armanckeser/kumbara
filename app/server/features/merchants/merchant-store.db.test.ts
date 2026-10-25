@@ -7,6 +7,9 @@
 //   2. resolve() over a SELECTION resolves them all in one write (the bulk worklist path).
 //   3. NO-DOWNGRADE: a `kb` merchant in the id list is skipped, NEVER demoted to learned — resolving must
 //      not silently rewrite the shipped norm. The `resolved` count reflects the skip.
+//   5. setDomains() stores the bare host of whatever was pasted, on a KB merchant too (a domain is
+//      presentation, not a verdict), clears with null, skips an unknown key in its count, and rejects a
+//      non-host before writing anything from the batch.
 //   4. suggestedCategories() impact-ranks by transaction COUNT descending — so the top of the worklist is
 //      the merchant whose resolution moves the most of the ledger. Zero-activity unresolved merchants are
 //      omitted (resolving them moves nothing).
@@ -237,6 +240,67 @@ if (TEST_DATABASE_URL === undefined) {
       ).pipe(
         Effect.tap((keys) => {
           assert.deepStrictEqual(keys, [key("active")]);
+          return Effect.void;
+        }),
+      ),
+    );
+
+    it.effect("setDomains stores the bare host of a pasted URL, on any source, and clears with null", () =>
+      withRollback(
+        Effect.gen(function* () {
+          const store = yield* MerchantStore;
+          const sql = yield* SqlClient;
+          yield* seedMerchant(key("dom-kb"), "kb");
+          yield* seedMerchant(key("dom-un"), "unresolved");
+          const first = yield* store.setDomains({
+            domains: [
+              { merchant_key: key("dom-kb"), domain: "https://www.Example.com/menu" },
+              { merchant_key: key("dom-un"), domain: "shop.example.org" },
+              { merchant_key: key("dom-missing"), domain: "example.net" },
+            ],
+          });
+          yield* store.setDomains({ domains: [{ merchant_key: key("dom-un"), domain: null }] });
+          const rows = yield* sql<{ merchant_key: string; domain: string | null }>`
+            SELECT merchant_key, domain FROM merchant
+            WHERE ${sql.in("merchant_key", [key("dom-kb"), key("dom-un")])} ORDER BY merchant_key
+          `;
+          return { updated: first.updated, rows: rows.map((row) => [row.merchant_key, row.domain]) };
+        }),
+      ).pipe(
+        Effect.tap(({ updated, rows }) => {
+          assert.strictEqual(updated, 2);
+          assert.deepStrictEqual(rows, [
+            [key("dom-kb"), "example.com"],
+            [key("dom-un"), null],
+          ]);
+          return Effect.void;
+        }),
+      ),
+    );
+
+    it.effect("setDomains rejects a non-host and writes nothing from the batch", () =>
+      withRollback(
+        Effect.gen(function* () {
+          const store = yield* MerchantStore;
+          const sql = yield* SqlClient;
+          yield* seedMerchant(key("dom-ok"), "unresolved");
+          const error = yield* Effect.flip(
+            store.setDomains({
+              domains: [
+                { merchant_key: key("dom-ok"), domain: "example.com" },
+                { merchant_key: key("dom-ok"), domain: "not a domain" },
+              ],
+            }),
+          );
+          const rows = yield* sql<{ domain: string | null }>`
+            SELECT domain FROM merchant WHERE merchant_key = ${key("dom-ok")}
+          `;
+          return { tag: error._tag, domain: rows[0].domain };
+        }),
+      ).pipe(
+        Effect.tap(({ tag, domain }) => {
+          assert.strictEqual(tag, "InvalidMerchantDomain");
+          assert.strictEqual(domain, null);
           return Effect.void;
         }),
       ),

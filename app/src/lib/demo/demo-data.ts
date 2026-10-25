@@ -148,6 +148,20 @@ export function demoSeed(): Record<string, readonly Record<string, unknown>[]> {
   ];
 
   // ---- Merchants -----------------------------------------------------------------------------------
+  // Website hosts for the well-known brands, so their logos show; the invented local merchants have none.
+  const DEMO_DOMAINS: Readonly<Record<string, string>> = {
+    netflix: "netflix.com",
+    spotify: "spotify.com",
+    uber: "uber.com",
+    amazon: "amazon.com",
+    target: "target.com",
+    shell: "shell.com",
+    cvs: "cvs.com",
+    delta: "delta.com",
+    wholefoods: "wholefoodsmarket.com",
+    chipotle: "chipotle.com",
+    sweetgreen: "sweetgreen.com",
+  };
   const merchant = (
     key: string,
     name: string,
@@ -164,6 +178,7 @@ export function demoSeed(): Record<string, readonly Record<string, unknown>[]> {
     transfer_override: null,
     mcc: null,
     logo: null,
+    domain: DEMO_DOMAINS[key] ?? null,
     source,
     created_at: noonIso(dayIn(6, 1)),
     updated_at: noonIso(today),
@@ -193,10 +208,12 @@ export function demoSeed(): Record<string, readonly Record<string, unknown>[]> {
     merchant("cinemax", "Cineplex Theatres", "cat_entertainment", "merchant", "kb"),
     merchant("cvs", "CVS Pharmacy", "cat_health", "merchant", "kb"),
     // Unresolved merchants (no default category) — the inbox's uncategorized anomalies group under these.
-    merchant("dailygrind", "SQ *THE DAILY GRIND", null, "merchant", "unresolved"),
-    merchant("riverside", "TST* RIVERSIDE BISTRO", null, "merchant", "unresolved"),
-    merchant("marketplace", "PAYPAL *MARKETPLACE", null, "payment", "unresolved"),
-    merchant("venmo", "VENMO CASHOUT", null, "payment", "unresolved"),
+    merchant("dailygrind", "The Daily Grind", null, "merchant", "unresolved"),
+    merchant("riverside", "Riverside Bistro", null, "merchant", "unresolved"),
+    merchant("marketplace", "Marketplace", null, "payment", "unresolved"),
+    merchant("venmo", "Pat Lee", null, "payment", "unresolved"),
+    merchant("harborview", "Harborview Hotel", "cat_travel", "merchant", "kb"),
+    merchant("sweetgreen", "Sweetgreen", null, "merchant", "unresolved"),
   ];
 
   // ---- Merchant memory (learned defaults) ----------------------------------------------------------
@@ -232,6 +249,8 @@ export function demoSeed(): Record<string, readonly Record<string, unknown>[]> {
     payee: string;
     category_id: string | null;
     person_id?: string | null;
+    /** The bank's raw descriptor; defaults to the payee upper-cased. */
+    description_raw?: string;
   }): Transaction => {
     txnCounter += 1;
     const id = `txn_${pad(txnCounter)}${pad(Math.floor(txnCounter / 100))}`;
@@ -245,7 +264,7 @@ export function demoSeed(): Record<string, readonly Record<string, unknown>[]> {
       posted_at: ymd(fields.date),
       transacted_at: ymd(fields.date),
       amount: money(fields.amount),
-      description_raw: fields.payee.toUpperCase(),
+      description_raw: fields.description_raw ?? fields.payee.toUpperCase(),
       bridge_payee: null,
       imported_payee: fields.payee,
       payee: fields.payee,
@@ -291,12 +310,12 @@ export function demoSeed(): Record<string, readonly Record<string, unknown>[]> {
     // Groceries.
     for (let i = 0; i < 5; i += 1) {
       const key = pick(groceryMerchants);
-      transactions.push(tx({ account_id: random() < 0.5 ? "acc_checking" : "acc_credit", date: dayIn(monthsBack, 2 + Math.floor(between(0, 26))), amount: -between(28, 165), merchant_key: key, payee: payeeOf(key), category_id: "cat_groceries" }));
+      transactions.push(tx({ account_id: random() < 0.5 ? "acc_checking" : "acc_credit", date: dayIn(monthsBack, 2 + Math.floor(between(0, 26))), amount: -between(28, 165), merchant_key: key, payee: payeeOf(key), category_id: "cat_groceries", description_raw: `${payeeOf(key).toUpperCase()} HOBOKEN NJ` }));
     }
     // Dining.
     for (let i = 0; i < 7; i += 1) {
       const key = pick(diningMerchants);
-      transactions.push(tx({ account_id: "acc_credit", date: dayIn(monthsBack, 2 + Math.floor(between(0, 26))), amount: -between(6, 46), merchant_key: key, payee: payeeOf(key), category_id: "cat_dining" }));
+      transactions.push(tx({ account_id: "acc_credit", date: dayIn(monthsBack, 2 + Math.floor(between(0, 26))), amount: -between(6, 46), merchant_key: key, payee: payeeOf(key), category_id: "cat_dining", description_raw: `${payeeOf(key).toUpperCase()} HOBOKEN NJ` }));
     }
     // Transport.
     transactions.push(tx({ account_id: "acc_credit", date: dayIn(monthsBack, 6), amount: -between(32, 64), merchant_key: "shell", payee: "Shell", category_id: "cat_transport" }));
@@ -314,19 +333,25 @@ export function demoSeed(): Record<string, readonly Record<string, unknown>[]> {
   // ---- Inbox anomalies (current month, category_id null) -------------------------------------------
   // Cohorts of uncategorized rows from unresolved merchants — the inbox groups these by merchant into one
   // question each, and a category chip resolves the whole cohort (demo-api's set-category shim).
-  const anomaly = (account_id: string, day: number, amount: number, key: string): void => {
-    transactions.push(tx({ account_id, date: dayIn(0, day), amount, merchant_key: key, payee: payeeOf(key), category_id: null }));
+  // Raw descriptors end in "CITY ST" like a real feed, so the inbox's place / trip cues have something to read.
+  const anomaly = (account_id: string, day: number, amount: number, key: string, description_raw: string): void => {
+    transactions.push(tx({ account_id, date: dayIn(0, day), amount, merchant_key: key, payee: payeeOf(key), category_id: null, description_raw }));
   };
-  anomaly("acc_credit", 4, -5.75, "dailygrind");
-  anomaly("acc_credit", 9, -6.25, "dailygrind");
-  anomaly("acc_credit", 15, -5.75, "dailygrind");
-  anomaly("acc_credit", 21, -7.1, "dailygrind");
-  anomaly("acc_credit", 6, -48.2, "riverside");
-  anomaly("acc_credit", 13, -32.1, "riverside");
-  anomaly("acc_credit", 24, -61.4, "riverside");
-  anomaly("acc_checking", 8, -25.0, "marketplace");
-  anomaly("acc_checking", 19, -60.0, "marketplace");
-  anomaly("acc_checking", 17, -40.0, "venmo");
+  anomaly("acc_credit", 4, -5.75, "dailygrind", "SQ *THE DAILY GRIND HOBOKEN NJ");
+  anomaly("acc_credit", 9, -6.25, "dailygrind", "SQ *THE DAILY GRIND HOBOKEN NJ");
+  anomaly("acc_credit", 15, -5.75, "dailygrind", "SQ *THE DAILY GRIND HOBOKEN NJ");
+  anomaly("acc_credit", 21, -7.1, "dailygrind", "SQ *THE DAILY GRIND HOBOKEN NJ");
+  anomaly("acc_credit", 22, -48.2, "riverside", "TST* RIVERSIDE BISTRO CAMBRIDGE MA");
+  anomaly("acc_credit", 23, -32.1, "riverside", "TST* RIVERSIDE BISTRO CAMBRIDGE MA");
+  anomaly("acc_credit", 24, -61.4, "riverside", "TST* RIVERSIDE BISTRO CAMBRIDGE MA");
+  anomaly("acc_checking", 8, -25.0, "marketplace", "PAYPAL *MARKETPLACE 4029357733");
+  anomaly("acc_checking", 19, -60.0, "marketplace", "PAYPAL *MARKETPLACE 4029357733");
+  anomaly("acc_checking", 17, 40.0, "venmo", "VENMO CASHOUT PAT LEE");
+  anomaly("acc_credit", 11, -14.85, "sweetgreen", "SWEETGREEN HOBOKEN NJ");
+  anomaly("acc_credit", 18, -16.2, "sweetgreen", "SWEETGREEN HOBOKEN NJ");
+  // The rest of the Cambridge trip — already categorized, so they show as same-day context, not questions.
+  transactions.push(tx({ account_id: "acc_credit", date: dayIn(0, 22), amount: -412, merchant_key: "harborview", payee: "Harborview Hotel", category_id: "cat_travel", description_raw: "HARBORVIEW HOTEL CAMBRIDGE MA" }));
+  transactions.push(tx({ account_id: "acc_credit", date: dayIn(0, 24), amount: -18.4, merchant_key: "uber", payee: "Uber", category_id: "cat_transport", description_raw: "UBER TRIP CAMBRIDGE MA" }));
 
   // ---- Transfer pair with an OPEN candidate link (the inbox's "uncertain link" anomaly) ------------
   const transferOut: Transaction = tx({ account_id: "acc_checking", date: dayIn(0, 20), amount: -500, merchant_key: null, payee: "Transfer to Savings", category_id: null });
