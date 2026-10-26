@@ -1,14 +1,24 @@
-<p align="center">
-  <img src="img/banner.png" alt="Kumbara: your bank feed, sorted. Bulk triage by merchant, stock plans and paychecks, AI-agent native." width="100%" />
-</p>
-
-**Your bank feed, sorted.** One tap files every charge from a merchant.
+**Categorizing every bank transaction by hand is a chore.**
+Kumbara files every charge from a merchant in one tap, so a month sorts in a few taps.
 
 <p align="center"><b><a href="https://kumbara-demo.armanckeser.com/">Click around the live demo →</a></b> &nbsp;<sub>fake household, runs entirely in your browser</sub></p>
 
 <p align="center">
   <img src="img/inbox.gif" alt="Two taps clear the inbox: one confirms a transfer between your own accounts, one accepts the best guess for every merchant, then the transactions list with each merchant's logo" width="340" />
 </p>
+
+<table>
+  <tr>
+    <td width="60%"><img src="img/budget.png" alt="September budget: Needs and Wants each show what is left to spend per day, Savings shows how much was saved and where the paycheck went" /></td>
+    <td width="20%"><img src="img/investments.png" alt="Investments: market value of six positions with a three-month chart" /></td>
+    <td width="20%"><img src="img/subscriptions.png" alt="Recurring activity: the paycheck and each monthly subscription, detected from the transactions" /></td>
+  </tr>
+  <tr>
+    <td><sub><b>Budget.</b> Each bucket shows what is left per day, and where the paycheck went.</sub></td>
+    <td><sub><b>Investments.</b> Value and trend across accounts.</sub></td>
+    <td><sub><b>Subscriptions.</b> Found in the transactions, no setup.</sub></td>
+  </tr>
+</table>
 
 - Files what it recognizes and asks about the rest once per merchant.
 - Pairs transfers between your own accounts, so they never count as spending.
